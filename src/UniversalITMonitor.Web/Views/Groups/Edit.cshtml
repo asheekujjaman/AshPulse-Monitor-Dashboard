@@ -1,0 +1,9 @@
+@model GroupEditViewModel
+@{
+    ViewData["Title"] = Model.IsEditing ? "Edit group" : "Add group";
+}
+<div class="page-heading"><div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>@ViewData["Title"]</h1><p class="page-subtitle">Groups can be nested. Moving a group keeps its device assignments intact.</p></div><a class="app-secondary-button" asp-action="Index">Back to groups</a></div>
+<section class="form-panel"><form asp-action="@(Model.IsEditing ? "Edit" : "Create")" method="post" class="device-form"><div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div><input asp-for="Id" type="hidden" />
+    <div class="form-grid"><div class="form-field"><label asp-for="Name"></label><input asp-for="Name" class="form-control" autocomplete="off" /><span asp-validation-for="Name" class="field-validation"></span></div><div class="form-field"><label asp-for="ParentGroupId">Parent group</label><select asp-for="ParentGroupId" class="form-select"><option value="">Top level</option>@foreach (var choice in Model.ParentChoices) { <option value="@choice.Id">@choice.Name</option> }</select></div></div>
+    <div class="form-actions"><button type="submit" class="app-primary-button btn">@(Model.IsEditing ? "Save changes" : "Add group")</button><a class="app-clear-link" asp-action="Index">Cancel</a></div>
+</form></section>

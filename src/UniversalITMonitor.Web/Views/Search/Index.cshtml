@@ -1,0 +1,131 @@
+@model GlobalSearchViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Global search";
+}
+<div class="page-heading">
+    <div><div class="eyebrow">INVENTORY SEARCH</div><h1>Search</h1><p class="page-subtitle">Find devices, addresses, locations, groups and saved topology maps.</p></div>
+</div>
+<form asp-action="Index" method="get" class="global-search-form">
+    <label class="visually-hidden" for="global-search-query">Search all inventory</label>
+    <input id="global-search-query" type="search" name="q" value="@Model.Query" placeholder="Device name, IP address, VLAN, switch, location or map" autofocus />
+    <button class="app-primary-button" type="submit">Search</button>
+</form>
+@if (string.IsNullOrWhiteSpace(Model.Query))
+{
+    <div class="empty-state panel-card"><h3>Search all inventory</h3><p>Results include current device status and IPAM assignment information where available.</p></div>
+}
+else
+{
+    <div class="search-result-count">Results for <strong>@Model.Query</strong></div>
+    <section class="panel-card search-results-panel">
+        <div class="panel-heading"><div><h2>Devices <span class="record-count">@Model.Devices.Count</span></h2></div></div>
+        @if (Model.Devices.Count == 0)
+        {
+            <p class="empty-inline">No matching devices.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="device-table">
+                <thead><tr><th>Device / IP</th><th>Status</th><th>Location / group</th><th>Response</th><th>Last check</th></tr></thead>
+                <tbody>
+                @foreach (var device in Model.Devices)
+                {
+                    <tr>
+                        <td><a class="device-name-link" asp-controller="Devices" asp-action="Details" asp-route-id="@device.Id">@device.Name</a><span class="device-ip copyable-ip" data-copy-ip="@device.IpAddress">@device.IpAddress</span></td>
+                        <td><span class="device-status status-@device.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span>@device.Status</span></td>
+                        <td>@device.Location<small>@device.Group</small></td>
+                        <td>@(device.ResponseTimeMilliseconds is null ? "—" : $"{device.ResponseTimeMilliseconds} ms")</td>
+                        <td>@(device.LastCheckUtc?.ToLocalTime().ToString("MMM d, HH:mm") ?? "—")</td>
+                    </tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </section>
+    <section class="panel-card search-results-panel">
+        <div class="panel-heading"><div><h2>IPAM records <span class="record-count">@Model.IpRecords.Count</span></h2></div></div>
+        @if (Model.IpRecords.Count == 0)
+        {
+            <p class="empty-inline">No matching IPAM records.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="device-table">
+                <thead><tr><th>IP / device</th><th>Assignment</th><th>Monitoring</th><th>VLAN</th><th>Switch / port</th></tr></thead>
+                <tbody>
+                @foreach (var result in Model.IpRecords)
+                {
+                    <tr>
+                        <td><strong class="copyable-ip" data-copy-ip="@result.Record.IpAddress">@result.Record.IpAddress</strong><small>@result.Record.DeviceName</small></td>
+                        <td>@result.Record.AssignmentStatus</td>
+                        <td>
+                            @if (result.CurrentStatus is { } status)
+                            {
+                                <span class="device-status status-@status.ToString().ToLowerInvariant()"><span class="status-dot"></span>@status</span>
+                            }
+                            else { <span class="muted-text">Not monitored</span> }
+                        </td>
+                        <td>@result.Record.VlanId @result.Record.VlanName</td>
+                        <td>@result.Record.SwitchName @result.Record.SwitchPort</td>
+                    </tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </section>
+    <section class="panel-card search-results-panel">
+        <div class="panel-heading"><div><h2>Subnets <span class="record-count">@Model.Subnets.Count</span></h2></div></div>
+        @if (Model.Subnets.Count == 0) { <p class="empty-inline">No matching subnets.</p> }
+        else
+        {
+            <div class="search-link-list">
+                @foreach (var subnet in Model.Subnets)
+                {
+                    <a asp-controller="Ipam" asp-action="Index" asp-route-search="@subnet.Cidr"><strong>@subnet.Cidr · VLAN @subnet.VlanId @subnet.VlanName</strong><span>@subnet.Location @subnet.Building</span></a>
+                }
+            </div>
+        }
+    </section>
+    <section class="search-result-groups">
+        <div class="panel-card search-results-panel">
+            <div class="panel-heading"><div><h2>Locations <span class="record-count">@Model.Locations.Count</span></h2></div></div>
+            @if (Model.Locations.Count == 0) { <p class="empty-inline">No matching locations.</p> }
+            else
+            {
+                <div class="search-link-list">
+                    @foreach (var item in Model.Locations)
+                    {
+                        <a asp-controller="Locations" asp-action="Details" asp-route-id="@item.Location.Id"><strong>@item.Path</strong><span>@item.DeviceCount device(s) · @item.UpCount up · @item.DownCount down</span></a>
+                    }
+                </div>
+            }
+        </div>
+        <div class="panel-card search-results-panel">
+            <div class="panel-heading"><div><h2>Groups <span class="record-count">@Model.Groups.Count</span></h2></div></div>
+            @if (Model.Groups.Count == 0) { <p class="empty-inline">No matching groups.</p> }
+            else
+            {
+                <div class="search-link-list">
+                    @foreach (var item in Model.Groups)
+                    {
+                        <a asp-controller="Groups" asp-action="Details" asp-route-id="@item.Group.Id"><strong>@item.Path</strong><span>@item.DeviceCount device(s) · @item.UpCount up · @item.DownCount down</span></a>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+    <section class="panel-card search-results-panel">
+        <div class="panel-heading"><div><h2>Network maps <span class="record-count">@Model.Maps.Count</span></h2></div></div>
+        @if (Model.Maps.Count == 0) { <p class="empty-inline">No matching maps.</p> }
+        else
+        {
+            <div class="search-link-list">
+                @foreach (var map in Model.Maps)
+                {
+                    <a asp-controller="NetworkMaps" asp-action="Editor" asp-route-id="@map.Id"><strong>@map.Name</strong><span>@map.Nodes.Count devices · @map.Connections.Count connections</span></a>
+                }
+            </div>
+        }
+    </section>
+}

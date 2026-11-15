@@ -1,0 +1,207 @@
+@model UniversalITMonitor.Application.Devices.DeviceInfo
+@using UniversalITMonitor.Core.Models
+@using System.Globalization
+@{
+    ViewData["Title"] = Model.Name;
+    var history = ViewBag.History as IReadOnlyList<MonitoringHistoryEntry> ?? [];
+    var canManage = User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator);
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">DEVICE DETAILS</div>
+        <h1>@Model.Name</h1>
+        <p class="page-subtitle"><span class="copyable-ip" data-copy-ip="@Model.IpAddress">@Model.IpAddress</span> <span class="detail-separator">·</span> @DeviceLabels.Type(Model.Type) <span class="detail-separator">·</span> @DeviceLabels.MonitoringMethod(Model.MonitoringMethod)</p>
+    </div>
+    <div class="heading-actions">
+        @if (canManage)
+        {
+            <a class="app-secondary-button" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+            <form asp-action="ToggleMonitoring" method="post" class="inline-form">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="enabled" value="@(!Model.MonitoringEnabled)" />
+                <button type="submit" class="app-secondary-button">@(Model.MonitoringEnabled ? "Pause monitoring" : "Enable monitoring")</button>
+            </form>
+        }
+        <a class="app-secondary-button" asp-action="Index">Back to devices</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="notice notice-success" role="status">@success</div>
+}
+
+<div class="details-grid" data-status-url="@Url.Action("Status", "Devices")">
+    <section class="panel-card device-summary-card" data-device-id="@Model.Id" data-status="@Model.Status" data-state-since="@Model.CurrentStateSinceUtc?.ToString("O")" data-monitoring-enabled="@Model.MonitoringEnabled.ToString().ToLowerInvariant()">
+        <div class="panel-heading"><div><h2>Current status</h2><p>ICMP reachability and latest check results</p></div><span class="device-status status-@Model.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span><span data-field="status">@Model.Status</span></span></div>
+        <dl class="detail-metrics">
+            <div><dt>Response time</dt><dd data-field="response">@(Model.ResponseTimeMilliseconds is null ? "—" : $"{Model.ResponseTimeMilliseconds} ms")</dd></div>
+            <div><dt>Current state duration</dt><dd data-field="duration">@(Model.CurrentStateSinceUtc is null ? "Not checked" : $"{Model.Status} since {Model.CurrentStateSinceUtc.Value.ToLocalTime():MMM d, yyyy HH:mm}")</dd></div>
+            <div><dt>Last check</dt><dd data-field="last-check">@(Model.LastCheckUtc?.ToLocalTime().ToString("MMM d, yyyy HH:mm:ss") ?? "Not checked")</dd></div>
+            <div><dt>Last successful check</dt><dd data-field="last-success">@(Model.LastSuccessfulCheckUtc?.ToLocalTime().ToString("MMM d, yyyy HH:mm:ss") ?? "Not checked")</dd></div>
+            <div><dt>Last failed check</dt><dd data-field="last-failure">@(Model.LastFailedCheckUtc?.ToLocalTime().ToString("MMM d, yyyy HH:mm:ss") ?? "None recorded")</dd></div>
+            <div><dt>Monitoring</dt><dd data-field="monitoring">@(Model.MonitoringEnabled ? "Enabled" : "Paused")</dd></div>
+        </dl>
+        @if (!string.IsNullOrWhiteSpace(Model.LastCheckError))
+        {
+            <div class="notice notice-warning"><strong>Latest check:</strong> @Model.LastCheckError</div>
+        }
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Device information</h2><p>Inventory and monitoring configuration</p></div></div>
+        <dl class="detail-metrics">
+            <div><dt>IP address</dt><dd class="copyable-ip" data-copy-ip="@Model.IpAddress">@Model.IpAddress</dd></div>
+            <div><dt>Device type</dt><dd>@DeviceLabels.Type(Model.Type)</dd></div>
+            <div><dt>Location</dt><dd>@(Model.Location ?? "Not assigned")</dd></div>
+            <div><dt>Group</dt><dd>@(Model.Group ?? "Not assigned")</dd></div>
+            <div><dt>Building</dt><dd>@(Model.Building ?? "Not assigned")</dd></div>
+            <div><dt>Description</dt><dd>@(Model.Description ?? "No description")</dd></div>
+            <div><dt>Created</dt><dd>@Model.CreatedUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</dd></div>
+            <div><dt>Updated</dt><dd>@Model.UpdatedUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</dd></div>
+            <div><dt>Monitoring method</dt><dd>@(Model.MonitoringMethod == MonitoringMethod.Icmp ? "ICMP" : "ICMP + SNMP")</dd></div>
+            @if (Model.MonitoringMethod == MonitoringMethod.IcmpAndSnmp)
+            {
+                <div><dt>SNMP configuration</dt><dd>@(Model.SnmpVersion == SnmpVersion.V2c ? $"SNMP v2c · UDP {Model.SnmpPort}" : $"SNMP v3 · {Model.SnmpSecurityLevel} · UDP {Model.SnmpPort}")</dd></div>
+                @if (Model.SnmpVersion == SnmpVersion.V3)
+                {
+                    <div><dt>SNMP username</dt><dd>@Model.SnmpUserName</dd></div>
+                }
+                <div><dt>Credential storage</dt><dd>Encrypted in local application data</dd></div>
+            }
+        </dl>
+    </section>
+</div>
+
+@if (Model.MonitoringMethod == MonitoringMethod.IcmpAndSnmp)
+{
+    <section class="panel-card snmp-metrics-panel" data-snmp-url="@Url.Action("SnmpMetrics", "Devices", new { id = Model.Id })" data-snmp-test-url="@Url.Action("TestSnmp", "Devices", new { id = Model.Id })">
+        <div class="panel-heading">
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h2>SNMP metrics &amp; Port traffic</h2>
+                    <span class="live-pill" title="Auto-refreshing live SNMP polling"><span class="live-pulse"></span>LIVE</span>
+                </div>
+                <p>Read-only standard OID results · <span data-field="snmp-collected">@(Model.LatestSnmpMetrics?.CollectedUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm:ss") ?? "Not collected yet")</span></p>
+            </div>
+            <div>
+                @if (canManage)
+                {
+                    <div id="snmp-test-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+                    <button type="button" class="app-secondary-button" id="test-snmp-now">Test SNMP now</button>
+                }
+                <span class="live-refresh-note">Auto-refreshes every 10s</span>
+            </div>
+        </div>
+        <div id="snmp-test-result" class="snmp-test-result" role="status" aria-live="polite" hidden></div>
+        <div id="snmp-error-container">
+            @if (Model.LatestSnmpMetrics?.CollectionError is string snmpError)
+            {
+                <div class="notice notice-warning">@snmpError</div>
+            }
+        </div>
+        <dl class="detail-metrics snmp-summary-metrics">
+            <div><dt>System description</dt><dd data-field="snmp-description">@(Model.LatestSnmpMetrics is null ? "Not collected yet" : Model.LatestSnmpMetrics.SystemDescription ?? "Not supported")</dd></div>
+            <div><dt>System name</dt><dd data-field="snmp-name">@(Model.LatestSnmpMetrics is null ? "Not collected yet" : Model.LatestSnmpMetrics.SystemName ?? "Not supported")</dd></div>
+            <div><dt>System uptime</dt><dd data-field="snmp-uptime">@(Model.LatestSnmpMetrics?.SystemUptimeHundredths is uint uptime ? TimeSpan.FromSeconds(uptime / 100d).ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture) : Model.LatestSnmpMetrics is null ? "Not collected yet" : "Not supported")</dd></div>
+            <div><dt>CPU utilization</dt><dd data-field="snmp-cpu">@(Model.LatestSnmpMetrics?.CpuUtilizationPercent is double cpu ? $"{cpu:0.0}%" : Model.LatestSnmpMetrics is null ? "Not collected yet" : "Not supported")</dd></div>
+            <div><dt>Memory utilization</dt><dd data-field="snmp-memory">@(Model.LatestSnmpMetrics?.MemoryUtilizationPercent is double memory ? $"{memory:0.0}%" : Model.LatestSnmpMetrics is null ? "Not collected yet" : "Not supported")</dd></div>
+        </dl>
+        <div id="interfaces-container">
+        @if (Model.LatestSnmpMetrics?.Interfaces.Count > 0)
+        {
+            <div class="snmp-interface-toolbar">
+                <label><input type="checkbox" id="show-hidden-interfaces" /> Show hidden interfaces</label>
+                <span>VLAN is read from Cisco port membership or the standard bridge PVID table when exposed by the device.</span>
+            </div>
+            <div class="table-responsive">
+                <table class="device-table" aria-label="SNMP interface metrics" id="interfaces-table">
+                    <thead><tr><th>Interface</th><th>Port status</th><th>Assigned VLAN</th><th>Speed</th><th>In traffic (Live)</th><th>Out traffic (Live)</th><th>Received bytes</th><th>Sent bytes</th><th>Visibility</th></tr></thead>
+                    <tbody id="interfaces-tbody">
+                    @foreach (var item in Model.LatestSnmpMetrics.Interfaces)
+                    {
+                        var (statusClass, statusText) = item.OperationalStatus switch
+                        {
+                            1 => ("status-up", "Up"),
+                            2 => ("status-down", "Down"),
+                            3 => ("status-testing", "Testing"),
+                            5 => ("status-dormant", "Dormant"),
+                            6 => ("status-unknown", "Not present"),
+                            7 => ("status-down", "Lower down"),
+                            _ => ("status-unknown", item.OperationalStatus.HasValue ? $"State {item.OperationalStatus.Value}" : "Not supported")
+                        };
+                        <tr data-interface-index="@item.Index" data-hidden="false">
+                            <td><strong>@item.Name</strong><span class="device-ip">ifIndex @item.Index@(string.IsNullOrEmpty(item.Description) || item.Description == item.Name ? "" : $" · {item.Description}")</span></td>
+                            <td data-field="port-status"><span class="device-status @statusClass"><span class="status-dot"></span><span data-field="port-status-text">@statusText</span></span><small data-field="admin-status">Admin: @(item.AdminStatus switch { 1 => "Up", 2 => "Down", _ => "Not exposed" })</small></td>
+                            <td data-field="port-vlan">@(item.VlanId is int vlanId ? $"VLAN {vlanId}" : "Not exposed")</td>
+                            <td data-field="port-speed">@(item.SpeedBitsPerSecond is long speed ? $"{speed / 1_000_000d:0.#} Mbps" : "Not supported")</td>
+                            <td data-field="port-in-traffic">
+                                @if (item.InBitsPerSecond is double inputRate)
+                                {
+                                    <div class="traffic-cell in-traffic"><span class="traffic-icon">↓</span><span>@(inputRate >= 1_000_000_000 ? $"{inputRate / 1_000_000_000d:0.##} Gbps" : inputRate >= 1_000_000 ? $"{inputRate / 1_000_000d:0.##} Mbps" : inputRate >= 1_000 ? $"{inputRate / 1_000d:0.##} Kbps" : $"{inputRate:0.#} bps")</span></div>
+                                }
+                                else
+                                {
+                                    <span class="traffic-muted">Waiting samples</span>
+                                }
+                            </td>
+                            <td data-field="port-out-traffic">
+                                @if (item.OutBitsPerSecond is double outputRate)
+                                {
+                                    <div class="traffic-cell out-traffic"><span class="traffic-icon">↑</span><span>@(outputRate >= 1_000_000_000 ? $"{outputRate / 1_000_000_000d:0.##} Gbps" : outputRate >= 1_000_000 ? $"{outputRate / 1_000_000d:0.##} Mbps" : outputRate >= 1_000 ? $"{outputRate / 1_000d:0.##} Kbps" : $"{outputRate:0.#} bps")</span></div>
+                                }
+                                else
+                                {
+                                    <span class="traffic-muted">Waiting samples</span>
+                                }
+                            </td>
+                            <td data-field="port-in-bytes">@(item.InOctets?.ToString("N0", CultureInfo.InvariantCulture) ?? "Not supported")</td>
+                            <td data-field="port-out-bytes">@(item.OutOctets?.ToString("N0", CultureInfo.InvariantCulture) ?? "Not supported")</td>
+                            <td><button type="button" class="app-secondary-button interface-visibility-toggle" data-interface-toggle="@item.Index">Hide</button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (Model.LatestSnmpMetrics is not null)
+        {
+            <div class="empty-inline">Interface metrics are not supported by this SNMP agent.</div>
+        }
+        </div>
+    </section>
+}
+
+<section class="panel-card history-panel">
+    <div class="panel-heading"><div><h2>Status history</h2><p>State transitions are appended to local JSONL history.</p></div><span class="record-count">@history.Count entries shown</span></div>
+    @if (history.Count == 0)
+    {
+        <div class="empty-inline">No status changes have been recorded yet. The first ICMP result appears here after a device is checked.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Device status history">
+                <thead><tr><th>Time</th><th>Previous</th><th>Current status</th><th>Response</th><th>Check note</th></tr></thead>
+                <tbody>
+                @foreach (var entry in history)
+                {
+                    <tr><td>@entry.OccurredUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm:ss")</td><td>@entry.PreviousStatus</td><td><span class="device-status status-@entry.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span>@entry.Status</span></td><td>@(entry.ResponseTimeMilliseconds is null ? "—" : $"{entry.ResponseTimeMilliseconds} ms")</td><td>@(entry.Error ?? "Status changed after ICMP check")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (canManage)
+{
+    <div class="danger-zone">
+        <div><strong>Remove device</strong><p>This removes the inventory record. The saved status history file is retained on disk.</p></div>
+        <form asp-action="Delete" method="post" onsubmit="return confirm('Remove this device from inventory?');">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit" class="app-danger-button">Delete device</button>
+        </form>
+    </div>
+}

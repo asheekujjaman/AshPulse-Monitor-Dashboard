@@ -1,0 +1,106 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "UniversalITMonitor.Web/1.0.0": {
+        "dependencies": {
+          "UniversalITMonitor.Application": "1.0.0",
+          "UniversalITMonitor.Core": "1.0.0",
+          "UniversalITMonitor.Monitoring": "1.0.0",
+          "UniversalITMonitor.Storage": "1.0.0"
+        },
+        "runtime": {
+          "UniversalITMonitor.Web.dll": {}
+        }
+      },
+      "Lextm.SharpSnmpLib/12.5.7": {
+        "runtime": {
+          "lib/net8.0/SharpSnmpLib.dll": {
+            "assemblyVersion": "12.5.7.0",
+            "fileVersion": "12.5.7.0"
+          }
+        }
+      },
+      "UniversalITMonitor.Application/1.0.0": {
+        "dependencies": {
+          "UniversalITMonitor.Core": "1.0.0"
+        },
+        "runtime": {
+          "UniversalITMonitor.Application.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "UniversalITMonitor.Core/1.0.0": {
+        "runtime": {
+          "UniversalITMonitor.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "UniversalITMonitor.Monitoring/1.0.0": {
+        "dependencies": {
+          "Lextm.SharpSnmpLib": "12.5.7",
+          "UniversalITMonitor.Core": "1.0.0"
+        },
+        "runtime": {
+          "UniversalITMonitor.Monitoring.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "UniversalITMonitor.Storage/1.0.0": {
+        "dependencies": {
+          "UniversalITMonitor.Core": "1.0.0"
+        },
+        "runtime": {
+          "UniversalITMonitor.Storage.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "UniversalITMonitor.Web/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Lextm.SharpSnmpLib/12.5.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-k631wRQNnFOpKxsYyziPp1UR4v+IBFS81nnmQyQa+RxSlmYjoLViNXINV43Aa49kQO1ulSUmGTI9DD94z0HAHg==",
+      "path": "lextm.sharpsnmplib/12.5.7",
+      "hashPath": "lextm.sharpsnmplib.12.5.7.nupkg.sha512"
+    },
+    "UniversalITMonitor.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "UniversalITMonitor.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "UniversalITMonitor.Monitoring/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "UniversalITMonitor.Storage/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -1,0 +1,53 @@
+@model LocationsIndexViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Locations";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>Locations</h1><p class="page-subtitle">Organize sites, buildings, and areas. Device assignments use stable location IDs.</p></div>
+    <div class="heading-actions">
+        <a class="app-secondary-button" asp-controller="Groups" asp-action="Index">Manage groups</a>
+        @if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator))
+        {
+            <a class="app-primary-link" asp-action="Create">Add location <span aria-hidden="true">+</span></a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Location tree</h2><p>Counts include devices assigned anywhere below each location.</p></div><span class="record-count">@Model.Locations.Count location(s)</span></div>
+    @if (Model.Locations.Count == 0)
+    {
+        <div class="empty-inline">No locations have been created. Add a site, then add its buildings or areas.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Location inventory">
+                <thead><tr><th>Location</th><th>Type</th><th>Devices</th><th>Up</th><th>Down</th><th>Unknown</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.Locations)
+                {
+                    <tr>
+                        <td><a class="device-name-link" asp-action="Details" asp-route-id="@item.Location.Id">@item.Path</a></td>
+                        <td>@item.Location.Kind</td>
+                        <td>@item.DeviceCount</td>
+                        <td><span class="device-status status-up"><span class="status-dot"></span>@item.UpCount</span></td>
+                        <td><span class="device-status status-down"><span class="status-dot"></span>@item.DownCount</span></td>
+                        <td><span class="device-status status-unknown"><span class="status-dot"></span>@item.UnknownCount</span></td>
+                        <td class="row-actions">
+                            @if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator))
+                            {
+                                <a asp-action="Edit" asp-route-id="@item.Location.Id">Edit</a><a asp-action="Delete" asp-route-id="@item.Location.Id">Delete</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

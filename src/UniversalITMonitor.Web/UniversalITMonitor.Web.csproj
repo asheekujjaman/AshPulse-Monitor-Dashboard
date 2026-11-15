@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>UniversalITMonitor.Web</RootNamespace>
+    <AssemblyName>UniversalITMonitor.Web</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Update="App_Data\**" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UniversalITMonitor.Application\UniversalITMonitor.Application.csproj" />
+    <ProjectReference Include="..\UniversalITMonitor.Core\UniversalITMonitor.Core.csproj" />
+    <ProjectReference Include="..\UniversalITMonitor.Storage\UniversalITMonitor.Storage.csproj" />
+    <ProjectReference Include="..\UniversalITMonitor.Monitoring\UniversalITMonitor.Monitoring.csproj" />
+  </ItemGroup>
+
+</Project>

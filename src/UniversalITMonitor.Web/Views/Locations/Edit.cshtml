@@ -1,0 +1,15 @@
+@model LocationEditViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = Model.IsEditing ? "Edit location" : "Add location";
+}
+<div class="page-heading"><div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>@ViewData["Title"]</h1><p class="page-subtitle">Create a location node with a stable ID. Parent changes keep device links intact.</p></div><a class="app-secondary-button" asp-action="Index">Back to locations</a></div>
+<section class="form-panel"><form asp-action="@(Model.IsEditing ? "Edit" : "Create")" method="post" class="device-form">
+    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div><input asp-for="Id" type="hidden" />
+    <div class="form-grid">
+        <div class="form-field"><label asp-for="Name"></label><input asp-for="Name" class="form-control" autocomplete="off" /><span asp-validation-for="Name" class="field-validation"></span></div>
+        <div class="form-field"><label asp-for="Kind">Location type</label><select asp-for="Kind" asp-items="Html.GetEnumSelectList<LocationKind>()" class="form-select"></select></div>
+        <div class="form-field form-field-wide"><label asp-for="ParentLocationId">Parent location</label><select asp-for="ParentLocationId" class="form-select"><option value="">Top level</option>@foreach (var choice in Model.ParentChoices) { <option value="@choice.Id">@choice.Name</option> }</select><span class="field-hint">A building can be nested under a site or area.</span></div>
+    </div>
+    <div class="form-actions"><button type="submit" class="app-primary-button btn">@(Model.IsEditing ? "Save changes" : "Add location")</button><a class="app-clear-link" asp-action="Index">Cancel</a></div>
+</form></section>

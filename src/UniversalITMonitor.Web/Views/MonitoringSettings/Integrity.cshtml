@@ -1,0 +1,44 @@
+@model UniversalITMonitor.Core.Models.InventoryReferenceReportDocument
+@{
+    ViewData["Title"] = "Inventory reference integrity";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">ADMINISTRATION</div><h1>Reference integrity</h1><p class="page-subtitle">Startup reconciliation checks stable IDs across devices, hierarchy, IPAM, and maps.</p></div>
+    <a class="app-secondary-button" asp-action="Index">Monitoring settings</a>
+</div>
+
+<div class="integrity-summary">
+    <section class="panel-card integrity-stat"><span>Last reconciliation (UTC)</span><strong>@(Model.LastRunUtc == default ? "Not run" : Model.LastRunUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss"))</strong></section>
+    <section class="panel-card integrity-stat"><span>Automatically repaired</span><strong>@Model.RepairedCount</strong></section>
+    <section class="panel-card integrity-stat"><span>Needs review</span><strong>@Model.Issues.Count(issue => !issue.Repaired)</strong></section>
+</div>
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Reconciliation details</h2><p>Repairs preserve inventory values and map layout. Unresolvable map references remain intact and are listed for administrator review.</p></div><span class="record-count">@Model.Issues.Count item(s)</span></div>
+    @if (Model.Issues.Count == 0)
+    {
+        <div class="empty-inline">No cross-document reference issues were found in the last reconciliation.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table integrity-table">
+                <thead><tr><th>Entity</th><th>ID</th><th>Field</th><th>Invalid reference</th><th>Result</th><th>Details</th></tr></thead>
+                <tbody>
+                @foreach (var issue in Model.Issues)
+                {
+                    <tr>
+                        <td>@issue.EntityType</td>
+                        <td class="integrity-id">@issue.EntityId</td>
+                        <td>@issue.Field</td>
+                        <td class="integrity-id">@issue.InvalidReference</td>
+                        <td><span class="device-status @(issue.Repaired ? "status-up" : "status-warning")"><span class="status-dot"></span>@(issue.Repaired ? "Repaired" : "Review")</span></td>
+                        <td>@issue.Detail</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

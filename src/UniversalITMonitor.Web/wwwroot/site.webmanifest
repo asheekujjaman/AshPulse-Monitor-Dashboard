@@ -1,0 +1,13 @@
+{
+  "name": "AshPulse Infrastructure Monitor",
+  "short_name": "AshPulse",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F8FD",
+  "theme_color": "#0B2D5B",
+  "icons": [
+    { "src": "favicon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

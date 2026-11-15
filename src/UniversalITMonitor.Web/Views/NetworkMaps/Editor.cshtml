@@ -1,0 +1,158 @@
+@model NetworkMapEditorViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = Model.MapId is null ? "New network map" : "Edit network map";
+    var canManage = User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator);
+}
+
+<div id="network-map-editor" class="map-page" data-map-id="@Model.MapId" data-editor-data-url="@Url.Action("EditorData")" data-status-url="@Url.Action("LiveStatus")" data-save-url="@Url.Action("Save")" data-delete-url="@Url.Action("Delete")" data-import-preview-url="@Url.Action("PreviewImport")" data-import-url="@Url.Action("Import")" data-can-edit="@canManage.ToString().ToLowerInvariant()">
+    <div id="map-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+    <div class="page-heading map-page-heading">
+        <div>
+            <div class="eyebrow">TOPOLOGY EDITOR</div>
+            <h1 id="map-title">Network map</h1>
+            <p class="page-subtitle">Build a clear topology with devices, groups, sites, links, and drawings.</p>
+        </div>
+        <div class="map-top-actions">
+            <a class="app-secondary-button" asp-action="Index">All maps</a>
+            <button id="map-mode-toggle" type="button" class="app-secondary-button map-mode-btn" title="Toggle View/Edit Mode">
+                <span id="map-mode-icon">👁️</span> <span id="map-mode-text">View mode</span>
+            </button>
+            <button id="map-save" type="button" class="app-primary-button" disabled="@(!canManage)">Save map</button>
+        </div>
+    </div>
+
+    <div class="map-editor-toolbar">
+        <label class="map-name-field">Map name<input id="map-name" type="text" maxlength="120" placeholder="e.g. Dhaka HQ core network" disabled="@(!canManage)" /></label>
+        <label class="map-select-field">Location<select id="map-location" disabled="@(!canManage)"><option value="">All locations</option></select></label>
+        <label class="map-select-field">Building<select id="map-building" disabled="@(!canManage)"><option value="">All buildings</option></select></label>
+        <div class="map-toolbar-actions">
+            <button id="map-arrange" type="button" class="app-secondary-button" disabled="@(!canManage)">Arrange items</button>
+            <button id="map-export" type="button" class="app-secondary-button" disabled="true">Export JSON</button>
+            <label class="app-secondary-button map-import-label">Import JSON<input id="map-import-file" type="file" accept="application/json,.json" hidden disabled="@(!canManage)" /></label>
+            @if (canManage && Model.MapId is not null)
+            {
+                <button id="map-delete" type="button" class="app-danger-button">Delete map</button>
+            }
+        </div>
+    </div>
+
+    <div id="map-message" class="map-message" role="status" aria-live="polite"></div>
+    <div class="map-workbench">
+        <aside class="map-device-library" aria-label="Device library">
+            <div class="map-side-heading"><h2>Devices</h2><span id="map-device-count">0</span></div>
+            <input id="map-device-search" type="search" class="form-control" placeholder="Search inventory" aria-label="Search devices" />
+            <label class="map-icon-select">Icon for new devices
+                <select id="map-icon-kind" class="form-select" disabled="@(!canManage)">
+                    <option value="Auto">Auto · match device type</option>
+                    @foreach (var icon in Enum.GetValues<MapIconKind>())
+                    {
+                        <option value="@icon">@DeviceLabels.MapIcon(icon)</option>
+                    }
+                </select>
+            </label>
+                <p class="map-library-hint">Choose an icon, then drag a device onto the canvas or use Add. The icon stays linked to this inventory record.</p>
+            <div id="map-device-list" class="map-device-list"></div>
+            <details class="map-library-section">
+                <summary>Groups and sites</summary>
+                <input id="map-entity-search" type="search" class="form-control" placeholder="Search groups and sites" aria-label="Search groups and sites" />
+                <p class="map-library-hint">Aggregate icons turn red if any monitored device is down, and green when all are up.</p>
+                <div id="map-entity-list" class="map-device-list"></div>
+            </details>
+        </aside>
+
+        <section class="map-canvas-shell" aria-label="Network map canvas">
+            <div class="map-canvas-toolbar">
+                <div class="map-tool-controls">
+                    <label>Tool<select id="map-tool-mode" class="form-select" disabled="@(!canManage)">
+                        <option value="select">Select / move</option>
+                        <option value="connect">Connect items</option>
+                        <option value="line">Draw line</option>
+                        <option value="rectangle">Rectangle</option>
+                        <option value="ellipse">Ellipse</option>
+                        <option value="text">Add text</option>
+                    </select></label>
+                    <label>Line width<select id="map-line-width" class="form-select" disabled="@(!canManage)">
+                        <option value="1">Thin</option><option value="2">Light</option><option value="2.5" selected>Normal</option><option value="3">Medium</option><option value="5">Thick</option><option value="8">Heavy</option>
+                    </select></label>
+                    <label class="map-color-field">Stroke<input id="map-stroke-color" type="color" value="#64748b" disabled="@(!canManage)" /></label>
+                    <label class="map-color-field">Fill<input id="map-fill-color" type="color" value="#93c5fd" disabled="@(!canManage)" /></label>
+                    <label class="map-no-fill"><input id="map-no-fill" type="checkbox" checked disabled="@(!canManage)" /> No fill</label>
+                    <label class="map-no-fill"><input id="map-snap-grid" type="checkbox" checked disabled="@(!canManage)" /> Snap to grid</label>
+                    <div class="map-node-size-picker" role="group" aria-label="Icon size">
+                        <span class="map-size-label">Size:</span>
+                        <button type="button" id="map-size-btn-sm" class="map-size-pill" data-size="sm" title="Small icon size">Small</button>
+                        <button type="button" id="map-size-btn-md" class="map-size-pill is-active" data-size="md" title="Medium icon size">Medium</button>
+                        <button type="button" id="map-size-btn-lg" class="map-size-pill" data-size="lg" title="Big icon size">Big</button>
+                    </div>
+                </div>
+                <span id="map-hint">Choose a tool, then arrange or draw on the canvas.</span>
+                <div class="map-zoom-tools">
+                    <button id="map-lock" type="button" aria-pressed="false">Lock map</button>
+                    <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
+                    <span id="map-zoom-value">100%</span>
+                    <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
+                    <button id="map-zoom-reset" type="button">Fit map</button>
+                    <button id="map-quick-viewmode" type="button" class="app-secondary-button map-quick-view-btn" title="Toggle full map view">View only</button>
+                    <button id="map-fullscreen" type="button" class="app-secondary-button">Full screen</button>
+                </div>
+            </div>
+            <div id="map-viewmode-popup" class="map-viewmode-popup" hidden>
+                <div class="map-popup-header">
+                    <div class="map-popup-identity">
+                        <span id="popup-status-mark" class="map-status-mark"></span>
+                        <div>
+                            <h3 id="popup-title">Site / Group</h3>
+                            <span id="popup-subtitle" class="map-popup-type">Building</span>
+                        </div>
+                    </div>
+                    <button id="popup-close-btn" type="button" class="map-popup-close" aria-label="Close popup">✕</button>
+                </div>
+                <div class="map-popup-stats" id="popup-stats">
+                    <span class="popup-chip chip-total" id="popup-stat-total">0 Total</span>
+                    <span class="popup-chip chip-up" id="popup-stat-up">0 Up</span>
+                    <span class="popup-chip chip-down" id="popup-stat-down">0 Down</span>
+                </div>
+                <div class="map-popup-body">
+                    <div class="map-popup-list-title">Assigned Hosts & Devices</div>
+                    <div id="popup-devices-list" class="map-popup-devices-list"></div>
+                </div>
+            </div>
+            <svg id="map-canvas" viewBox="0 0 1600 1000" role="img" aria-label="Interactive network topology canvas">
+                <defs>
+                    <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" fill="none" stroke="#e2e8f0" stroke-width="0.8" /></pattern>
+                    <filter id="map-shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity=".15" /></filter>
+                    <filter id="badge-glow-up" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#16a34a" flood-opacity=".4" /></filter>
+                    <filter id="badge-glow-down" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#dc2626" flood-opacity=".45" /></filter>
+                </defs>
+                <rect class="map-grid-background" x="-4000" y="-4000" width="12000" height="10000" fill="url(#map-grid)" />
+                <g id="map-annotations"></g>
+                <g id="map-connections"></g>
+                <g id="map-nodes"></g>
+            </svg>
+        </section>
+
+        <aside class="map-device-inspector" aria-label="Selection details">
+            <div class="map-side-heading"><h2>Details</h2></div>
+            <div id="map-inspector-content" class="map-inspector-empty">Select a device or connection on the canvas to inspect it.</div>
+            <div class="map-connection-section">
+                <div class="map-side-heading"><h3>Connections</h3><span id="map-connection-count">0</span></div>
+                <div id="map-connection-list" class="map-connection-list"></div>
+            </div>
+        </aside>
+    </div>
+
+    <dialog id="map-import-dialog" class="map-import-dialog">
+        <form method="dialog" class="map-import-dialog-content">
+            <div class="map-side-heading"><h2>Import map</h2><button value="cancel" class="map-dialog-close" aria-label="Close">×</button></div>
+            <p id="map-import-summary"></p>
+            <div id="map-import-missing" class="map-import-missing"></div>
+            <label>Imported map name<input id="map-import-name" type="text" maxlength="120" class="form-control" /></label>
+            <div class="map-import-dialog-actions"><button value="cancel" class="app-secondary-button">Cancel</button><button id="map-import-confirm" type="button" class="app-primary-button" disabled>Import map</button></div>
+        </form>
+    </dialog>
+</div>
+
+@section Scripts {
+    <script src="~/js/network-maps.js" asp-append-version="true"></script>
+}

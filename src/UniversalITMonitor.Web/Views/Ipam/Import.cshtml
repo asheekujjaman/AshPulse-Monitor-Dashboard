@@ -1,0 +1,19 @@
+@model IpamImportViewModel
+@{
+    ViewData["Title"] = "Import IP records";
+}
+<div id="ipam-import" class="ipam-import-page" data-preview-url="@Url.Action("PreviewImport")" data-import-url="@Url.Action("CommitImport")">
+    <div id="ipam-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+    <div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>Import IP records</h1><p class="page-subtitle">Map your CSV columns, preview validation, then import new addresses. Existing records are never overwritten.</p></div><a class="app-secondary-button" asp-action="Template">Download CSV template</a></div>
+    <section class="panel-card ipam-import-card">
+        <label class="ipam-file-drop">Choose a CSV file<input id="ipam-csv-file" type="file" accept=".csv,text/csv" /><span>CSV only · up to 5 MB and 10,000 data rows</span></label>
+        <div id="ipam-mapping" class="ipam-mapping" hidden><h2>Column mapping</h2><p>Choose the source column for each field. Fields set to Skip will not be imported.</p><div id="ipam-mapping-fields" class="ipam-mapping-grid"></div><button id="ipam-preview" class="app-primary-button" type="button">Preview import</button></div>
+        <div id="ipam-import-message" class="ipam-import-message" role="status" aria-live="polite"></div>
+        <div id="ipam-preview-area" class="ipam-preview-area" hidden>
+            <div id="ipam-preview-summary" class="ipam-preview-summary"></div>
+            <div class="table-responsive"><table class="device-table"><thead><tr><th>Row</th><th>IP</th><th>Device</th><th>Assignment</th><th>Result</th></tr></thead><tbody id="ipam-preview-rows"></tbody></table></div>
+            <button id="ipam-commit" class="app-primary-button" type="button" disabled>Import valid rows</button>
+        </div>
+    </section>
+</div>
+@section Scripts { <script src="~/js/ipam-import.js" asp-append-version="true"></script> }

@@ -1,0 +1,99 @@
+@model IpamIndexViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "IP address management";
+    var canManage = User.IsInRole(SystemRoles.Administrator);
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">ADDRESS INVENTORY</div>
+        <h1>IP address management</h1>
+        <p class="page-subtitle">Track address assignments and subnet details. ICMP response does not establish ownership.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="app-secondary-button" asp-action="Subnets">Subnets <span>(@Model.Subnets.Count)</span></a>
+        <a class="app-secondary-button" asp-action="Export">Export CSV</a>
+        <a class="app-secondary-button" asp-action="Template">CSV template</a>
+        @if (canManage)
+        {
+            <a class="app-secondary-button" asp-action="Discover">Discover subnet</a>
+            <a class="app-secondary-button" asp-action="Import">Import CSV</a>
+            <a class="app-primary-link" asp-action="Create">Add IP record <span aria-hidden="true">+</span></a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
+
+<section class="panel-card ipam-panel">
+    <form class="ipam-search-form" method="get">
+        <label class="visually-hidden" for="ipam-search">Search IP inventory</label>
+        <input id="ipam-search" type="search" name="search" value="@Model.Search" placeholder="Search IP, device, VLAN, switch, port, location or building" />
+        <label class="visually-hidden" for="ipam-status">Assignment status</label>
+        <select id="ipam-status" name="status">
+            <option value="">All assignment statuses</option>
+            @foreach (var status in Enum.GetValues<IpAssignmentStatus>())
+            {
+                <option value="@status" selected="@(Model.Status == status)">@status</option>
+            }
+        </select>
+        <button class="app-primary-button" type="submit">Search</button>
+    </form>
+    <div class="panel-heading">
+        <div><h2>IP records</h2><p>@Model.Records.Count record(s) · @Model.Subnets.Count registered subnet(s)</p></div>
+    </div>
+    @if (Model.Records.Count == 0)
+    {
+        <div class="empty-state"><h3>No IP records match</h3><p>Add an IP inventory entry or import a CSV file. This module does not change device or DHCP settings.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table ipam-table" aria-label="IP address records">
+                <thead><tr><th>IP address</th><th>Device</th><th>Subnet / VLAN</th><th>Location / group</th><th>Switch / port</th><th>Assignment</th><th>Monitor</th>@if (canManage){<th>Actions</th>}</tr></thead>
+                <tbody>
+                @foreach (var row in Model.Records)
+                {
+                    var record = row.Record;
+                    <tr>
+                        <td><strong class="ipam-ip copyable-ip" data-copy-ip="@record.IpAddress">@record.IpAddress</strong><small>@record.MacAddress</small></td>
+                        <td><strong>@(record.DeviceName ?? "Unassigned")</strong><small>@record.DeviceType</small></td>
+                        <td><strong>@Model.Subnets.FirstOrDefault(item => item.Id == record.SubnetId)?.Cidr</strong><small>@(record.VlanId is null ? "" : $"VLAN {record.VlanId} · {record.VlanName}")</small></td>
+                        <td><strong>@(record.Location ?? "—")</strong><small>@(record.Building ?? record.Group ?? "")</small></td>
+                        <td><strong>@(record.SwitchName ?? "—")</strong><small>@if (!string.IsNullOrWhiteSpace(record.SwitchIpAddress)) { <span class="copyable-ip" data-copy-ip="@record.SwitchIpAddress">@record.SwitchIpAddress</span> } @if (record.SwitchPort is not null) { <span>· @record.SwitchPort</span> }</small></td>
+                        <td><span class="ipam-assignment assignment-@record.AssignmentStatus.ToString().ToLowerInvariant()">@record.AssignmentStatus</span><small>@record.AssignedTo</small></td>
+                        <td>
+                            @if (row.CurrentStatus is { } currentStatus)
+                            {
+                                <span class="device-status status-@currentStatus.ToString().ToLowerInvariant()"><span class="status-dot"></span>@currentStatus</span>
+                                <small>@(row.ResponseTimeMilliseconds is null ? "" : $"{row.ResponseTimeMilliseconds} ms")</small>
+                            }
+                            else { <span class="muted-text">Not monitored</span> }
+                        </td>
+                        @if (canManage)
+                        {
+                            <td class="ipam-actions"><a class="app-secondary-button" asp-action="Edit" asp-route-id="@record.Id">Edit</a>
+                                <form asp-action="Delete" method="post" onsubmit="return confirm('Delete IP record @record.IpAddress?')"><input type="hidden" name="id" value="@record.Id" /><button class="app-danger-button" type="submit">Delete</button></form>
+                            </td>
+                        }
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+@if (!string.IsNullOrWhiteSpace(Model.Search) && Model.MatchedSubnets.Count > 0)
+{
+    <section class="panel-card search-results-panel">
+        <div class="panel-heading"><div><h2>Matching subnets <span class="record-count">@Model.MatchedSubnets.Count</span></h2></div></div>
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>CIDR</th><th>VLAN</th><th>Location / building</th><th>Description</th></tr></thead><tbody>
+        @foreach (var subnet in Model.MatchedSubnets)
+        {
+            <tr><td><strong>@subnet.Cidr</strong></td><td>@subnet.VlanId @subnet.VlanName</td><td>@subnet.Location<small>@subnet.Building</small></td><td>@subnet.Description</td></tr>
+        }
+        </tbody></table></div>
+    </section>
+}

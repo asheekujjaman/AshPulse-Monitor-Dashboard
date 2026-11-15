@@ -1,0 +1,174 @@
+@model DeviceDiscoveryViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Subnet discovery";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">DEVICE INVENTORY</div>
+        <h1>Subnet discovery</h1>
+        <p class="page-subtitle">Find responsive devices on an IPv4 subnet, review their IP addresses, then add the devices you need.</p>
+    </div>
+    <a class="app-secondary-button" asp-action="Index">Back to inventory</a>
+</div>
+
+<div id="device-discovery"
+     class="discovery-page"
+     data-scan-url="@Url.Action("ScanSubnet", "Devices")"
+     data-single-add-url="@Url.Action("AddDiscovered", "Devices")"
+     data-batch-add-url="@Url.Action("BatchAddDiscovered", "Devices")">
+    <div id="discovery-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+
+    <section class="panel-card discovery-scan-card" aria-labelledby="discovery-scan-heading">
+        <div class="panel-heading">
+            <div>
+                <h2 id="discovery-scan-heading">Scan a subnet</h2>
+                <p>Enter a CIDR block such as 192.168.1.0/24 or select one already registered in IPAM.</p>
+            </div>
+        </div>
+        <form id="discovery-scan-form" class="discovery-scan-form">
+            @if (Model.RegisteredSubnets.Count > 0)
+            {
+                <label class="discovery-field" for="registered-subnet">
+                    Registered subnet
+                    <select class="form-select" id="registered-subnet">
+                        <option value="">Choose a registered subnet</option>
+                        @foreach (var subnet in Model.RegisteredSubnets)
+                        {
+                            <option value="@subnet.Cidr">@subnet.Cidr@(string.IsNullOrWhiteSpace(subnet.Location) ? string.Empty : $" · {subnet.Location}")</option>
+                        }
+                    </select>
+                </label>
+            }
+            <label class="discovery-field" for="subnet-cidr">
+                Subnet CIDR
+                <input class="form-control" id="subnet-cidr" name="cidr" value="@Model.SubnetCidr" placeholder="192.168.1.0/24" autocomplete="off" required />
+            </label>
+            <label class="discovery-field" for="scan-timeout">
+                Ping timeout
+                <select class="form-select" id="scan-timeout" name="timeoutMilliseconds">
+                    <option value="300">300 ms</option>
+                    <option value="500" selected>500 ms</option>
+                    <option value="1000">1 second</option>
+                    <option value="2000">2 seconds</option>
+                </select>
+            </label>
+            <button class="app-primary-button btn discovery-scan-button" id="scan-subnet-button" type="submit">Scan subnet</button>
+        </form>
+        <p class="discovery-scan-note">Discovery checks IPv4 addresses from the application server using ICMP. Only hosts that answer the ping appear. Scan sizes are limited to /22 through /32.</p>
+    </section>
+
+    <div id="discovery-message" class="discovery-message" role="status" aria-live="polite" hidden></div>
+
+    <section class="panel-card discovery-results" id="discovery-results" aria-labelledby="discovery-results-heading" hidden>
+        <div class="panel-heading discovery-results-heading">
+            <div>
+                <h2 id="discovery-results-heading">Discovered devices</h2>
+                <p id="discovery-result-summary"></p>
+            </div>
+            <span class="discovery-selection-count" id="discovery-selection-count">0 selected</span>
+        </div>
+        <div class="discovery-toolbar">
+            <label class="discovery-select-all"><input id="select-all-discovered" type="checkbox" /> Select all new devices</label>
+            <button class="app-primary-button btn" id="add-selected-devices" type="button" disabled>Add selected</button>
+        </div>
+        <div class="table-responsive">
+            <table class="device-table discovery-table" aria-label="Discovered network devices">
+                <thead>
+                    <tr><th scope="col">Select</th><th scope="col">IP address</th><th scope="col">Hostname / suggested name</th><th scope="col">Type</th><th scope="col">Ping</th><th scope="col">Inventory</th><th scope="col">Action</th></tr>
+                </thead>
+                <tbody id="discovery-device-rows"></tbody>
+            </table>
+        </div>
+        <div class="panel-footer"><span>Devices already in inventory cannot be selected again.</span><a asp-action="Index">Open inventory</a></div>
+    </section>
+
+    <dialog class="discovery-dialog" id="add-device-dialog" aria-labelledby="add-dialog-title">
+        <form id="add-device-form" class="discovery-dialog-content">
+            <div class="discovery-dialog-heading">
+                <div>
+                    <div class="eyebrow">ADD TO INVENTORY</div>
+                    <h2 id="add-dialog-title">Add discovered device</h2>
+                </div>
+                <button class="discovery-dialog-close" id="close-add-dialog" type="button" aria-label="Close">×</button>
+            </div>
+            <p class="discovery-dialog-intro" id="add-dialog-intro"></p>
+
+            <div class="discovery-single-fields" id="single-device-fields">
+                <label class="discovery-field" for="add-device-name">Device name
+                    <input class="form-control" id="add-device-name" name="name" maxlength="120" required />
+                </label>
+                <div class="discovery-ip-summary"><span>IP address</span><strong id="add-device-ip"></strong></div>
+            </div>
+            <div class="discovery-ip-summary discovery-batch-summary" id="batch-device-summary" hidden><span>Selected devices</span><strong id="add-device-count"></strong><div class="discovery-batch-device-list" id="add-device-list"></div></div>
+
+            <div class="discovery-form-grid">
+                <label class="discovery-field" for="add-device-type">Device type
+                    <select class="form-select" id="add-device-type">
+                        @foreach (var option in Enum.GetValues<DeviceType>())
+                        {
+                            <option value="@((int)option)">@DeviceLabels.Type(option)</option>
+                        }
+                    </select>
+                </label>
+                <label class="discovery-field" for="add-monitoring-method">Monitoring method
+                    <select class="form-select" id="add-monitoring-method">
+                        @foreach (var option in Html.GetEnumSelectList<MonitoringMethod>())
+                        {
+                            <option value="@option.Value">@option.Text</option>
+                        }
+                    </select>
+                </label>
+                <label class="discovery-field" for="add-location">Location
+                    <select class="form-select" id="add-location"><option value="">Unassigned</option>@foreach (var option in Model.LocationChoices) { <option value="@option.Id">@option.Name</option> }</select>
+                </label>
+                <label class="discovery-field" for="add-building">Building
+                    <select class="form-select" id="add-building"><option value="">Unassigned</option>@foreach (var option in Model.BuildingChoices) { <option value="@option.Id">@option.Name</option> }</select>
+                </label>
+                <label class="discovery-field" for="add-group">Group
+                    <select class="form-select" id="add-group"><option value="">Unassigned</option>@foreach (var option in Model.GroupChoices) { <option value="@option.Id">@option.Name</option> }</select>
+                </label>
+                <label class="discovery-check-field"><input id="add-monitoring-enabled" type="checkbox" checked /><span><strong>Monitoring enabled</strong><small>New devices will be checked during monitoring cycles.</small></span></label>
+                <label class="discovery-field discovery-description-field" for="add-device-description">Description
+                    <textarea class="form-control" id="add-device-description" maxlength="1000" rows="2" placeholder="Optional device notes"></textarea>
+                </label>
+            </div>
+
+            <section class="discovery-snmp-fields" id="discovery-snmp-fields" hidden aria-labelledby="discovery-snmp-heading">
+                <div class="discovery-snmp-heading"><h3 id="discovery-snmp-heading">SNMP read-only settings</h3><p>Credentials are stored encrypted with the device.</p></div>
+                <div class="discovery-form-grid">
+                    <label class="discovery-field" for="add-snmp-version">SNMP version
+                        <select class="form-select" id="add-snmp-version">
+                            @foreach (var option in Enum.GetValues<SnmpVersion>()) { <option value="@((int)option)">@option</option> }
+                        </select>
+                    </label>
+                    <label class="discovery-field" for="add-snmp-port">SNMP port<input class="form-control" id="add-snmp-port" type="number" min="1" max="65535" value="161" /></label>
+                    <label class="discovery-field discovery-snmp-v2" for="add-snmp-community">Community string<input class="form-control" id="add-snmp-community" type="password" autocomplete="new-password" /></label>
+                    <label class="discovery-field discovery-snmp-v3" for="add-snmp-username">SNMP username<input class="form-control" id="add-snmp-username" maxlength="128" autocomplete="off" /></label>
+                    <label class="discovery-field discovery-snmp-v3" for="add-snmp-security">Security level
+                        <select class="form-select" id="add-snmp-security">@foreach (var option in Enum.GetValues<SnmpSecurityLevel>()) { <option value="@((int)option)">@option</option> }</select>
+                    </label>
+                    <label class="discovery-field discovery-snmp-auth discovery-snmp-v3" for="add-snmp-auth-protocol">Authentication protocol
+                        <select class="form-select" id="add-snmp-auth-protocol">@foreach (var option in Enum.GetValues<SnmpAuthenticationProtocol>()) { <option value="@((int)option)">@option</option> }</select>
+                    </label>
+                    <label class="discovery-field discovery-snmp-auth discovery-snmp-v3" for="add-snmp-auth-password">Authentication password<input class="form-control" id="add-snmp-auth-password" type="password" autocomplete="new-password" /></label>
+                    <label class="discovery-field discovery-snmp-privacy discovery-snmp-v3" for="add-snmp-privacy-protocol">Privacy protocol
+                        <select class="form-select" id="add-snmp-privacy-protocol">@foreach (var option in Enum.GetValues<SnmpPrivacyProtocol>()) { <option value="@((int)option)">@option</option> }</select>
+                    </label>
+                    <label class="discovery-field discovery-snmp-privacy discovery-snmp-v3" for="add-snmp-privacy-password">Privacy password<input class="form-control" id="add-snmp-privacy-password" type="password" autocomplete="new-password" /></label>
+                </div>
+            </section>
+
+            <div class="discovery-dialog-error" id="add-dialog-error" role="alert" hidden></div>
+            <div class="discovery-dialog-actions">
+                <button class="app-secondary-button" id="cancel-add-device" type="button">Cancel</button>
+                <button class="app-primary-button btn" id="confirm-add-device" type="submit">Add to inventory</button>
+            </div>
+        </form>
+    </dialog>
+</div>
+
+@section Scripts {
+    <script src="~/js/device-discovery.js" asp-append-version="true"></script>
+}

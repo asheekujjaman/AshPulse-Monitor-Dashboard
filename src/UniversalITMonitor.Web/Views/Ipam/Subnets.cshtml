@@ -1,0 +1,17 @@
+@model IpamSubnetsViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Subnets";
+    var canManage = User.IsInRole(SystemRoles.Administrator);
+}
+
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>Subnets</h1><p class="page-subtitle">Register IPv4 or IPv6 networks and associate inventory records with them.</p></div><div class="heading-actions"><a class="app-secondary-button" asp-action="Index">IP records</a>@if(canManage){<a class="app-primary-link" asp-action="CreateSubnet">Register subnet <span aria-hidden="true">+</span></a>}</div></div>
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Registered subnets</h2><p>@Model.Subnets.Count subnet(s) · @Model.Records.Count(record => record.SubnetId != null) assigned IP record(s)</p></div></div>
+    @if(Model.Subnets.Count == 0){<div class="empty-state"><h3>No subnets registered</h3><p>Register a CIDR block to validate IP record membership.</p></div>}
+    else { <div class="table-responsive"><table class="device-table"><thead><tr><th>CIDR</th><th>VLAN</th><th>Location</th><th>Records</th><th>Description</th>@if(canManage){<th>Actions</th>}</tr></thead><tbody>
+        @foreach(var subnet in Model.Subnets){var count=Model.Records.Count(record=>record.SubnetId==subnet.Id);<tr><td><strong>@subnet.Cidr</strong></td><td>@(subnet.VlanId is null ? "—" : $"{subnet.VlanId} · {subnet.VlanName}")</td><td>@(subnet.Location ?? "—")<small>@subnet.Building</small></td><td>@count</td><td>@subnet.Description</td>@if(canManage){<td class="ipam-actions"><a class="app-secondary-button" asp-action="EditSubnet" asp-route-id="@subnet.Id">Edit</a><form asp-action="DeleteSubnet" method="post" onsubmit="return confirm('Delete subnet @subnet.Cidr?')"><input type="hidden" name="id" value="@subnet.Id"/><button class="app-danger-button" type="submit">Delete</button></form></td>}</tr>}
+    </tbody></table></div> }
+</section>

@@ -1,0 +1,48 @@
+﻿@model SetupAdminViewModel
+@{
+    ViewData["Title"] = "Create administrator";
+}
+
+<section class="auth-shell">
+    <div class="auth-card setup-card">
+        <div class="auth-kicker"><span class="context-dot"></span>First-run setup</div>
+        <h1>Create your administrator</h1>
+        <p class="auth-description">Create the first local administrator account. Setup closes after this account is saved.</p>
+
+        <form asp-controller="Account" asp-action="Setup" method="post" class="auth-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+            <div class="form-field">
+                <label asp-for="DisplayName">Name</label>
+                <input asp-for="DisplayName" class="form-control" autocomplete="name" autofocus />
+                <span asp-validation-for="DisplayName" class="field-validation"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="UserName">Username</label>
+                <input asp-for="UserName" class="form-control" autocomplete="username" />
+                <span asp-validation-for="UserName" class="field-validation"></span>
+                <span class="field-hint">Username starts as admin; you can change it.</span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Password">Password</label>
+                <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="Password" class="field-validation"></span>
+                <span class="field-hint">Use at least 12 characters.</span>
+            </div>
+            <div class="form-field">
+                <label asp-for="ConfirmPassword">Confirm password</label>
+                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword" class="field-validation"></span>
+            </div>
+            <button type="submit" class="btn btn-primary app-primary-button w-100">Create administrator</button>
+        </form>
+
+        <div class="auth-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 19 6v5.4c0 4.1-2.8 7.5-7 9.1-4.2-1.6-7-5-7-9.1V6l7-2.5Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+            <span>Passwords are hashed. Setup is available only until the first account is created.</span>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,16 @@
+@model BackupRestoreViewModel
+@{
+    ViewData["Title"] = "Restore complete";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">RESTORE COMPLETE</div>
+        <h1>Full restore committed</h1>
+        <p class="page-subtitle">The application is restarting so its services can reload the restored data and Data Protection keys.</p>
+    </div>
+</div>
+<section class="panel-card">
+    <div class="notice notice-success" role="status">The application data was restored from <strong>@Model.FileName</strong>. Reopen the application after the service starts.</div>
+    <p>A safety backup of the previous data was written to the configured backup directory before replacement.</p>
+</section>

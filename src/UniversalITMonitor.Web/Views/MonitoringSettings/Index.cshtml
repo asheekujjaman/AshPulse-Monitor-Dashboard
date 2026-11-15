@@ -1,0 +1,32 @@
+@model MonitoringSettingsViewModel
+@{
+    ViewData["Title"] = "Monitoring";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">ADMINISTRATION</div><h1>Monitoring</h1><p class="page-subtitle">Control ICMP polling cadence and network load.</p></div>
+    <div class="heading-actions">
+        <a class="app-secondary-button" asp-action="Integrity">Reference integrity</a>
+        <a class="app-secondary-button" asp-controller="Devices" asp-action="Index">Back to devices</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="notice notice-success" role="status">@success</div>
+}
+
+<section class="form-panel settings-panel">
+    <form asp-action="Index" method="post" class="device-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div class="form-section-heading"><h2>ICMP polling</h2><p>The worker runs a check cycle immediately on startup and never overlaps cycles.</p></div>
+        <div class="form-grid settings-grid">
+            <div class="form-field"><label asp-for="PollingIntervalSeconds"></label><input asp-for="PollingIntervalSeconds" class="form-control" /><span asp-validation-for="PollingIntervalSeconds" class="field-validation"></span><span class="field-hint">Allowed: 10 seconds to 1 hour.</span></div>
+            <div class="form-field"><label asp-for="MaximumConcurrentChecks"></label><input asp-for="MaximumConcurrentChecks" class="form-control" /><span asp-validation-for="MaximumConcurrentChecks" class="field-validation"></span><span class="field-hint">Allowed: 1 to 64 devices checked at once.</span></div>
+            <div class="form-field"><label asp-for="PingTimeoutMilliseconds"></label><input asp-for="PingTimeoutMilliseconds" class="form-control" /><span asp-validation-for="PingTimeoutMilliseconds" class="field-validation"></span><span class="field-hint">Allowed: 250 to 10,000 milliseconds.</span></div>
+        </div>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">Save settings</button></div>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

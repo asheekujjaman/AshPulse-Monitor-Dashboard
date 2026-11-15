@@ -1,0 +1,16 @@
+﻿@model AppBrandViewModel
+<style>
+    :root {
+        --brand-primary: @Model.PrimaryColor;
+        --brand-sidebar: @Model.SidebarColor;
+        --brand-surface: @Model.SurfaceColor;
+        --brand-page: @Model.PageColor;
+    }
+</style>
+<div class="brand-lockup">
+    <img class="brand-mark" src="~/images/brand/sidebar-icon.svg" alt="" width="40" height="40" />
+    <div class="brand-copy">
+        <span class="brand-name">@Model.ProductName</span>
+        <span class="brand-organization">@Model.OrganizationName</span>
+    </div>
+</div>

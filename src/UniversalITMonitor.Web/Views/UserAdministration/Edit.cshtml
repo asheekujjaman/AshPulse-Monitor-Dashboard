@@ -1,0 +1,25 @@
+@model UserAdministrationEditViewModel
+@{
+    ViewData["Title"] = Model.IsCreate ? "Add user" : "Edit user";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">ADMINISTRATION</div><h1>@ViewData["Title"]</h1><p class="page-subtitle">Passwords use the application password hasher and are never shown after saving.</p></div>
+    <a class="app-secondary-button" asp-action="Index">Back to users</a>
+</div>
+
+<section class="form-panel settings-panel">
+    <form asp-action="@(Model.IsCreate ? "Create" : "Edit")" asp-route-id="@Model.Id" method="post" class="device-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div class="form-grid settings-grid">
+            <div class="form-field"><label asp-for="DisplayName"></label><input asp-for="DisplayName" class="form-control" autocomplete="name" /><span asp-validation-for="DisplayName" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="UserName"></label><input asp-for="UserName" class="form-control" autocomplete="username" /><span asp-validation-for="UserName" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="Role"></label><select asp-for="Role" class="form-select"><option value="">Choose a role</option>@foreach (var role in Model.Roles) { <option value="@role.Name">@role.Label</option> }</select><span asp-validation-for="Role" class="field-validation"></span><span class="field-hint">Operator remains available for existing Phase 1 and Phase 2 access assignments.</span></div>
+            <div class="form-field"><label asp-for="Password">@(Model.IsCreate ? "Initial password" : "Set new password")</label><input asp-for="Password" type="password" class="form-control" autocomplete="new-password" /><span asp-validation-for="Password" class="field-validation"></span><span class="field-hint">@(Model.IsCreate ? "Required; at least 12 characters." : "Leave blank to keep the current password; enter 12 or more characters to reset it.")</span></div>
+            <label class="form-check form-field"><input asp-for="IsEnabled" class="form-check-input" /><span class="form-check-label">Account enabled</span></label>
+        </div>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">Save user</button><a class="app-secondary-button" asp-action="Index">Cancel</a></div>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,14 @@
+@model UniversalITMonitor.Application.Accounts.ManagedLocalUser
+@{
+    ViewData["Title"] = "Delete user";
+}
+
+<div class="page-heading"><div><div class="eyebrow">ADMINISTRATION</div><h1>Delete user</h1><p class="page-subtitle">Remove the local account for @Model.DisplayName.</p></div></div>
+<section class="form-panel settings-panel">
+    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+    <p>Delete <strong>@Model.UserName</strong> (@string.Join(", ", Model.Roles))? This action cannot be undone.</p>
+    <form asp-action="DeleteConfirmed" method="post">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <div class="form-actions"><button type="submit" class="app-danger-button btn">Delete user</button><a class="app-secondary-button" asp-action="Index">Cancel</a></div>
+    </form>
+</section>

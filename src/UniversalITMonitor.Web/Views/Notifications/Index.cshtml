@@ -1,0 +1,102 @@
+@model NotificationSettingsPageViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Alerts";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">OPERATIONS</div><h1>Alerts</h1><p class="page-subtitle">Configure delivery and review persisted device status transition alerts.</p></div>
+    <a class="app-secondary-button" asp-controller="MonitoringSettings" asp-action="Index">Monitoring settings</a>
+</div>
+
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
+
+<section class="form-panel settings-panel notification-panel">
+    <form asp-action="Save" method="post" class="device-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div class="form-section-heading"><h2>Telegram</h2><p>Use a Telegram bot token and destination chat ID. The token is never rendered after saving.</p></div>
+        <div class="form-grid settings-grid">
+            <label class="form-check form-field"><input asp-for="Input.TelegramEnabled" class="form-check-input" /><span class="form-check-label">Enable Telegram alerts</span></label>
+            <div class="form-field"><label asp-for="Input.TelegramChatId"></label><input asp-for="Input.TelegramChatId" class="form-control" autocomplete="off" /><span asp-validation-for="Input.TelegramChatId" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="Input.TelegramBotToken"></label><input asp-for="Input.TelegramBotToken" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasTelegramBotToken ? "A token is protected and saved. Leave blank to keep it." : "No token is saved.")</span></div>
+            @if (Model.HasTelegramBotToken) { <label class="form-check form-field"><input asp-for="Input.ClearTelegramBotToken" class="form-check-input" /><span class="form-check-label">Remove saved token</span></label> }
+        </div>
+
+        <div class="form-section-heading"><h2>Email (SMTP)</h2><p>SMTP delivery uses TLS. Credentials are protected and only their saved state is shown.</p></div>
+        <div class="form-grid settings-grid">
+            <label class="form-check form-field"><input asp-for="Input.EmailEnabled" class="form-check-input" /><span class="form-check-label">Enable email alerts</span></label>
+            <div class="form-field"><label asp-for="Input.SmtpHost"></label><input asp-for="Input.SmtpHost" class="form-control" /><span asp-validation-for="Input.SmtpHost" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="Input.SmtpPort"></label><input asp-for="Input.SmtpPort" class="form-control" /><span asp-validation-for="Input.SmtpPort" class="field-validation"></span><span class="field-hint">Common submission port: 587.</span></div>
+            <div class="form-field"><label asp-for="Input.SmtpFromAddress"></label><input asp-for="Input.SmtpFromAddress" class="form-control" autocomplete="email" /><span asp-validation-for="Input.SmtpFromAddress" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="Input.SmtpToAddress"></label><input asp-for="Input.SmtpToAddress" class="form-control" autocomplete="email" /><span asp-validation-for="Input.SmtpToAddress" class="field-validation"></span></div>
+            <label class="form-check form-field"><input asp-for="Input.SmtpUseTls" class="form-check-input" /><span class="form-check-label">Use SMTP TLS (required)</span></label>
+            <div class="form-field"><label asp-for="Input.SmtpUserName"></label><input asp-for="Input.SmtpUserName" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSmtpUserName ? "A username is protected and saved. Leave blank to keep it." : "No username is saved. Leave blank for an unauthenticated relay.")</span></div>
+            <div class="form-field"><label asp-for="Input.SmtpPassword"></label><input asp-for="Input.SmtpPassword" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSmtpPassword ? "A password is protected and saved. Leave blank to keep it." : "No password is saved.")</span></div>
+            @if (Model.HasSmtpUserName || Model.HasSmtpPassword) { <label class="form-check form-field"><input asp-for="Input.ClearSmtpCredentials" class="form-check-input" /><span class="form-check-label">Remove saved SMTP credentials</span></label> }
+        </div>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">Save notification settings</button></div>
+    </form>
+
+    <div class="notification-tests">
+        <form asp-action="Test" method="post"><input type="hidden" name="channel" value="Telegram" /><button class="app-secondary-button" type="submit">Send Telegram test</button></form>
+        <form asp-action="Test" method="post"><input type="hidden" name="channel" value="Email" /><button class="app-secondary-button" type="submit">Send email test</button></form>
+    </div>
+</section>
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Alert delivery history</h2><p>Delivery attempts and safe result details. Secrets and provider response bodies are not stored here.</p></div><span class="record-count">@Model.History.Count recent</span></div>
+    @if (Model.History.Count == 0)
+    {
+        <div class="empty-inline">No device transitions or test sends have been recorded yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Notification delivery history">
+                <thead><tr><th>Occurred (UTC)</th><th>Device</th><th>IP</th><th>Transition</th><th>Telegram</th><th>Email</th></tr></thead>
+                <tbody>
+                @foreach (var record in Model.History)
+                {
+                    <tr>
+                        <td>@record.OccurredUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@(record.DeviceName ?? record.Kind.ToString())</td>
+                        <td>@if (!string.IsNullOrWhiteSpace(record.IpAddress)) { <span class="copyable-ip" data-copy-ip="@record.IpAddress">@record.IpAddress</span> } else { <span>—</span> }</td>
+                        <td>@(record.PreviousStatus?.ToString() ?? "—") → @(record.Status?.ToString() ?? "Test")</td>
+                        @foreach (var channel in new[] { NotificationChannel.Telegram, NotificationChannel.Email })
+                        {
+                            var delivery = record.Deliveries.Where(item => item.Channel == channel)
+                                .OrderByDescending(item => item.AttemptedUtc).FirstOrDefault();
+                            var requested = record.RequestedChannels.Contains(channel);
+                            <td>
+                                @if (delivery is not null)
+                                {
+                                    <span class="device-status @(delivery.Succeeded ? "status-up" : "status-down")"><span class="status-dot"></span>@(delivery.Succeeded ? "Sent" : "Failed")</span>
+                                    @if (!delivery.Succeeded && !delivery.DeadLettered && delivery.NextAttemptUtc is { } retryAt)
+                                    {
+                                        <span class="field-hint">Attempt @delivery.AttemptNumber; retry scheduled @retryAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'").</span>
+                                    }
+                                    @if (delivery.DeadLettered)
+                                    {
+                                        <span class="field-hint">Dead-lettered after @delivery.AttemptNumber attempt(s).</span>
+                                        <form asp-action="Retry" method="post" class="inline-form">
+                                            <input type="hidden" name="recordId" value="@record.Id" />
+                                            <input type="hidden" name="channel" value="@channel" />
+                                            <button class="app-secondary-button notification-retry-button" type="submit">Retry now</button>
+                                        </form>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(delivery.Detail)) { <span class="field-hint">@delivery.Detail</span> }
+                                }
+                                else if (requested) { <span>Pending</span> }
+                                else { <span>Disabled</span> }
+                            </td>
+                        }
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

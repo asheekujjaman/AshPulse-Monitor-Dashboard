@@ -1,0 +1,69 @@
+@model BackupRestoreViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Validate backup";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">RESTORE VALIDATION</div>
+        <h1>Backup preview</h1>
+        <p class="page-subtitle">@Model.FileName</p>
+    </div>
+    <a class="app-secondary-button" asp-action="Index">Back to backups</a>
+</div>
+
+@if (Model.Error is not null) { <div class="notice notice-error" role="alert">@Model.Error</div> }
+<div asp-validation-summary="All" class="notice notice-error" role="alert"></div>
+
+@if (Model.Preview is not null)
+{
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Validated archive</h2><p>The ZIP manifest, file hashes, required JSON documents, references and protected credentials passed validation.</p></div></div>
+        <dl class="details-grid">
+            <div><dt>Application version</dt><dd>@Model.Preview.ApplicationVersion</dd></div>
+            <div><dt>Backup date</dt><dd>@Model.Preview.CreatedUtc.ToLocalTime().ToString("f")</dd></div>
+            <div><dt>Expanded data size</dt><dd>@((Model.Preview.TotalLength / 1024d / 1024).ToString("0.0")) MB</dd></div>
+            <div><dt>Data Protection</dt><dd>@Model.Preview.KeyProtection.Mode</dd></div>
+            <div><dt>Included files</dt><dd>@Model.Preview.Files.Count</dd></div>
+            <div><dt>Available modules</dt><dd>@string.Join(", ", Model.Preview.AvailableModules)</dd></div>
+        </dl>
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Restore selection</h2><p>A safety backup of the current application data is created before any files are replaced.</p></div></div>
+        <form asp-action="Restore" method="post" class="backup-restore-form">
+            <input type="hidden" asp-for="FileName" />
+            <fieldset>
+                <legend>Choose restore scope</legend>
+                <label class="radio-field"><input type="radio" name="FullRestore" value="true" checked="@(Model.FullRestore)" /> Full restore</label>
+                <p class="field-help">Replaces all application JSON data and the Data Protection key ring. The application restarts after the response.</p>
+                <label class="radio-field"><input type="radio" name="FullRestore" value="false" checked="@(!Model.FullRestore)" /> Selected modules</label>
+                <div class="backup-module-grid">
+                    @foreach (var module in Model.Preview.AvailableModules)
+                    {
+                        <label><input type="checkbox" name="Modules" value="@module" checked="@(Model.Modules.Contains(module))" /> @module</label>
+                    }
+                </div>
+            </fieldset>
+            <label class="checkbox-field backup-confirm">
+                <input asp-for="ConfirmReplace" required />
+                <span>I understand this restore replaces existing application data. The validated archive and its selected scope are correct.</span>
+            </label>
+            <div class="form-actions">
+                <button class="app-danger-button" type="submit">Restore selected data</button>
+                <a class="app-secondary-button" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Archive contents</h2><p>Manifest file names, sizes and SHA-256 hashes.</p></div></div>
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>Path</th><th>Size</th><th>SHA-256</th></tr></thead><tbody>
+        @foreach (var item in Model.Preview.Files)
+        {
+            <tr><td><code>@item.Path</code></td><td>@((item.Length / 1024d).ToString("0.0")) KB</td><td><code>@item.Sha256</code></td></tr>
+        }
+        </tbody></table></div>
+    </section>
+}

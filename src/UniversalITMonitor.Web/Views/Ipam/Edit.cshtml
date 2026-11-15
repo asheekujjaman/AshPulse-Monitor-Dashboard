@@ -1,0 +1,35 @@
+@model IpamRecordEditViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    var isEdit = Model.Record.Id != Guid.Empty;
+    ViewData["Title"] = isEdit ? "Edit IP record" : "Add IP record";
+}
+
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>@ViewData["Title"]</h1><p class="page-subtitle">Link a monitored device to use its current name, address, type, location and group.</p></div></div>
+<form asp-action="@(isEdit ? "Edit" : "Create")" method="post" class="form-panel ipam-edit-form">
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <input asp-for="Record.Id" type="hidden" />
+    <div class="ipam-form-grid">
+        <label asp-for="Record.IpAddress">IP address<input asp-for="Record.IpAddress" class="form-control" placeholder="192.0.2.15" /><span asp-validation-for="Record.IpAddress" class="field-validation"></span></label>
+        <label asp-for="Record.DeviceId">Link monitored device<select asp-for="Record.DeviceId" class="form-select" id="ipam-linked-device"><option value="">No device link</option>@foreach (var device in Model.Devices){<option value="@device.Id" data-ip="@device.IpAddress" data-name="@device.Name" data-type="@device.Type" data-location="@device.LocationId" data-building="@device.BuildingId" data-group="@device.GroupId">@device.Name · @device.IpAddress</option>}</select></label>
+        <label asp-for="Record.SubnetId">Registered subnet<select asp-for="Record.SubnetId" class="form-select"><option value="">No subnet</option>@foreach (var subnet in Model.Subnets){<option value="@subnet.Id">@subnet.Cidr@(subnet.VlanId is null ? "" : $" · VLAN {subnet.VlanId}")</option>}</select></label>
+        <label asp-for="Record.AssignmentStatus">Assignment status<select asp-for="Record.AssignmentStatus" class="form-select">@foreach (var status in Enum.GetValues<IpAssignmentStatus>()){<option value="@status">@status</option>}</select></label>
+        <label asp-for="Record.VlanId">VLAN ID<input asp-for="Record.VlanId" type="number" min="1" max="4094" class="form-control" /></label>
+        <label asp-for="Record.VlanName">VLAN name<input asp-for="Record.VlanName" maxlength="120" class="form-control" /></label>
+        <label asp-for="Record.DeviceName">Device name<input asp-for="Record.DeviceName" maxlength="120" class="form-control" /></label>
+        <label asp-for="Record.DeviceType">Device type<input asp-for="Record.DeviceType" maxlength="80" class="form-control" /></label>
+        <label asp-for="Record.LocationId">Location<select asp-for="Record.LocationId" class="form-select" id="ipam-location"><option value="">Unassigned</option>@foreach (var item in Model.Locations){<option value="@item.Id">@item.Name</option>}</select></label>
+        <label asp-for="Record.BuildingId">Building<select asp-for="Record.BuildingId" class="form-select" id="ipam-building"><option value="">Unassigned</option>@foreach (var item in Model.Buildings){<option value="@item.Id">@item.Name</option>}</select></label>
+        <label asp-for="Record.GroupId">Group<select asp-for="Record.GroupId" class="form-select"> <option value="">Unassigned</option>@foreach (var item in Model.Groups){<option value="@item.Id">@item.Name</option>}</select></label>
+        <label asp-for="Record.SwitchName">Switch name<input asp-for="Record.SwitchName" maxlength="120" class="form-control" /></label>
+        <label asp-for="Record.SwitchIpAddress">Switch IP<input asp-for="Record.SwitchIpAddress" class="form-control" placeholder="192.0.2.2" /></label>
+        <label asp-for="Record.SwitchPort">Switch port<input asp-for="Record.SwitchPort" maxlength="80" class="form-control" placeholder="Gi1/0/24" /></label>
+        <label asp-for="Record.MacAddress">MAC address<input asp-for="Record.MacAddress" maxlength="32" class="form-control" placeholder="00:11:22:33:44:55" /></label>
+        <label asp-for="Record.AssignedTo">Assigned to<input asp-for="Record.AssignedTo" maxlength="160" class="form-control" /></label>
+        <label asp-for="Record.Department">Department<input asp-for="Record.Department" maxlength="120" class="form-control" /></label>
+        <label asp-for="Record.Description" class="ipam-description">Description<textarea asp-for="Record.Description" maxlength="500" rows="3" class="form-control"></textarea></label>
+    </div>
+    <p class="form-note">A linked device's IP and descriptive fields come from Device Management. ICMP reachability never determines the assignment status or owner.</p>
+    <div class="form-actions"><a class="app-secondary-button" asp-action="Index">Cancel</a><button type="submit" class="app-primary-button">Save IP record</button></div>
+</form>
+@section Scripts { <script src="~/js/ipam-record.js" asp-append-version="true"></script> }

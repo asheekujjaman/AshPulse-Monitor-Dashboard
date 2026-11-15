@@ -1,0 +1,42 @@
+﻿# Changelog
+
+## Unreleased
+
+- Added a Windows Server/IIS deployment package with publish/runtime instructions, external storage configuration, application-pool ACL checklist, upgrade/rollback steps, production integration/viewport/load validation procedures, and Data Protection-aware disaster recovery guidance. These are operator procedures; no target-server validation is claimed.
+- Hardened monitoring transitions with an atomic device-state outbox and idempotent history/notification replay; added crash-replay coverage.
+- Required absolute, external Production data paths and external backup paths, rejected linked data paths, and added an exclusive sidecar process lease for one active application instance.
+- Added persistent JSONL application logs with per-event flush, size/retention rotation, secret redaction, message bounds, and non-blocking handling of log-write failures.
+- Added valid `.bak` recovery when a primary JSON document is missing, plus startup cross-document reconciliation for hierarchy, device, map, and IPAM links with an Admin review report.
+- Added bounded Telegram/SMTP retry scheduling, dead-letter visibility, and Admin retry. Added CSV/map request, row, field, and export limits.
+- Added persistent five-failure/15-minute account lockout alongside the login IP limit; documented that Admin MFA must be supplied by the deployment access layer.
+- Added persistent Ocean Blue, Midnight Purple, and Emerald Green application themes, a low-opacity network pattern, and matching SVG/PNG/ICO/Apple touch icons. The branded sign-in view uses the shield identity, and the PWA manifest uses relative scope and icon paths for IIS virtual applications.
+- Added isolated regression tests for recovery, external paths, exclusive process locking, log redaction/rotation, themes, failed-login lockout, reference reconciliation, notification retry/dead-letter behavior, and theme/favicons across Admin pages and the branded sign-in screen.
+- Updated IIS and migration guidance, production readiness findings, input limits, notification delivery semantics, and remaining JSONL retention and real-environment verification limits.
+- Added Admin-only verified ZIP backups with a versioned manifest and SHA-256 hashes, scheduled backups and retention, operation history, restore preview, full and selected-module restore, explicit replacement confirmation, and a safety backup before restore.
+- Added staged restore validation and directory-swap rollback, archive path/symlink/size checks, device/map/IPAM/user/settings relationship validation, and Data Protection credential compatibility checks. Monitoring, notification, and ordinary web work pause during snapshot/restore maintenance.
+- Added configurable Data Protection certificate wrapping for planned cross-server deployments and documented key-ring, Windows identity/DPAPI, IIS permissions, and migration requirements. Protected credential archives are rejected when the configured keys cannot open them.
+- Added temporary-data-directory tests covering archive completeness/integrity, invalid archives, full and selected-module restore safety, key compatibility, retention, and pre-restore safety backups.
+- Updated the README, architecture documentation, and project status for Phase 5 and recorded the remaining cross-server migration constraints.
+- Added Admin-configurable Telegram and TLS-required SMTP notifications for device DOWN and DOWN-to-UP recovery transitions, with status-transition deduplication, encrypted credentials, test-send actions, and persisted delivery outcomes.
+- Added Administrator-only local user administration for create, edit, disable, delete, and password reset, with server-side role enforcement, refreshed cookie claims, and atomic protection for the last active administrator.
+- Added authenticated UTC date-range reports for availability, UP/DOWN/UNKNOWN duration, status transitions, measured response samples, current location/group summaries, and IPAM inventory; included filtered CSV exports and browser print-to-PDF support.
+- Added append-only per-device monitoring check samples for real response-time reporting and made missing historical data explicit instead of estimating it.
+- Added automated tests for notification transitions/failures, user authorization/password hashing/last-admin protection, report calculations and exports, and Admin/Read-only page access.
+- Updated the README, changelog, architecture documentation, and project status for Phase 4, including provider, AD, PDF, and historical-data limitations.
+- Added stable-ID location, building, and nested group management with safe legacy assignment migration, live status counts, device reassignment, and guarded deletion.
+- Added persistent, interactive topology maps linked to existing device records, with draggable/resizable icons, editable connections, zoom/pan/full-screen controls, live monitoring status, JSON export, and missing-reference import preview.
+- Added JSON-backed IPAM for unique IPv4/IPv6 records and validated CIDR subnets, VLAN/device/location/switch assignment fields, searchable filters, Admin-only CRUD, CSV templates/export, mapped-column preview, validation, and duplicate-safe import.
+- Linked IPAM entries to existing devices without duplicate device records. Device edits update linked IPAM identity; device deletion preserves inventory snapshots and removes map references.
+- Added location/group/IPAM summaries to the dashboard, a global search across devices, IPAM records, subnets, locations, groups, and maps, and navigation links for the new modules.
+- Added automated regression tests for authorization, Phase 2 behavior, hierarchy migration and assignments, map persistence/references, IP/CIDR validation, duplicate detection, linked-device synchronization, and IPAM CSV preview/import.
+- Updated the README, architecture, and project status for Phase 3.
+- Added device inventory CRUD with device type, IP address, location/group metadata, monitoring enable/disable, search, and filters.
+- Added CSV import/export with row validation, duplicate-IP handling, a downloadable template, and secret-free exports.
+- Added bounded periodic ICMP checks, response times, current uptime/downtime duration, last-success/failure times, and live status refresh.
+- Added SNMP v2c and v3 read-only polling for system and interface metrics, with optional vendor-dependent metrics reported as unsupported.
+- Protected SNMP credentials with ASP.NET Core Data Protection and excluded them from UI responses and CSV exports.
+- Added append-only per-device JSONL transition history and separate per-device JSON metric snapshots.
+- Added administrator controls for polling interval, ping timeout, and maximum concurrent checks.
+- Replaced the foundation overview with live inventory and status totals.
+- Preserved the Phase 1 local setup, authentication, role policies, and synchronized atomic JSON document storage.
+- Updated the architecture, deployment, and project status documentation for Phase 2.

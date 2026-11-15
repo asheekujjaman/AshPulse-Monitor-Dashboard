@@ -1,0 +1,11 @@
+@model GroupDeleteViewModel
+@{
+    ViewData["Title"] = "Delete group";
+}
+<div class="page-heading"><div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>Delete group</h1><p class="page-subtitle">@Model.Name</p></div><a class="app-secondary-button" asp-action="Index">Back to groups</a></div>
+@if (!string.IsNullOrWhiteSpace(Model.Error)) { <div class="notice notice-warning" role="alert">@Model.Error</div> }
+<section class="form-panel"><div class="form-section-heading"><h2>Review assignments</h2><p>@Model.DeviceCount device(s) are assigned to this group. Child groups must be moved first.</p></div><form asp-action="Delete" method="post" class="device-form"><input asp-for="Id" type="hidden" />
+    <div class="form-field"><label asp-for="ReassignToGroupId">Move affected devices to</label><select asp-for="ReassignToGroupId" class="form-select"><option value="">Choose a group</option>@foreach (var choice in Model.Choices) { <option value="@choice.Id">@choice.Name</option> }</select></div>
+    <label class="check-field"><input asp-for="ConfirmUnassignDevices" /><span><strong>Confirm unassignment</strong><small>Clear the group assignment while keeping every device record.</small></span></label>
+    <div class="form-actions"><button type="submit" class="app-danger-button">Delete group</button><a class="app-clear-link" asp-action="Index">Cancel</a></div>
+</form></section>

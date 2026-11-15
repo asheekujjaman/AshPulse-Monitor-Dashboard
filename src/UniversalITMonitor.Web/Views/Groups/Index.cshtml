@@ -1,0 +1,13 @@
+@model GroupsIndexViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Groups";
+}
+<div class="page-heading"><div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>Groups</h1><p class="page-subtitle">Create nested operational groups and review real device health totals.</p></div><div class="heading-actions"><a class="app-secondary-button" asp-controller="Locations" asp-action="Index">Manage locations</a>@if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator)) { <a class="app-primary-link" asp-action="Create">Add group <span aria-hidden="true">+</span></a> }</div></div>
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+<section class="panel-card"><div class="panel-heading"><div><h2>Group tree</h2><p>Counts include devices in child groups.</p></div><span class="record-count">@Model.Groups.Count group(s)</span></div>
+    @if (Model.Groups.Count == 0) { <div class="empty-inline">No groups have been created yet.</div> }
+    else { <div class="table-responsive"><table class="device-table" aria-label="Device groups"><thead><tr><th>Group</th><th>Devices</th><th>Up</th><th>Down</th><th>Unknown</th><th></th></tr></thead><tbody>
+        @foreach (var item in Model.Groups) { <tr><td><a class="device-name-link" asp-action="Details" asp-route-id="@item.Group.Id">@item.Path</a></td><td>@item.DeviceCount</td><td><span class="device-status status-up"><span class="status-dot"></span>@item.UpCount</span></td><td><span class="device-status status-down"><span class="status-dot"></span>@item.DownCount</span></td><td><span class="device-status status-unknown"><span class="status-dot"></span>@item.UnknownCount</span></td><td class="row-actions">@if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator)) { <a asp-action="Edit" asp-route-id="@item.Group.Id">Edit</a><a asp-action="Delete" asp-route-id="@item.Group.Id">Delete</a> }</td></tr> }
+    </tbody></table></div> }
+</section>

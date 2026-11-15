@@ -1,0 +1,42 @@
+@model AppearanceSettingsViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Appearance";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">ADMINISTRATION</div><h1>Appearance</h1><p class="page-subtitle">Choose the default colour theme for every signed-in and sign-in page.</p></div>
+    <a class="app-secondary-button" asp-controller="MonitoringSettings" asp-action="Index">Monitoring settings</a>
+</div>
+
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+
+<section class="form-panel settings-panel appearance-panel">
+    <form asp-action="Index" method="post" class="device-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div class="form-section-heading"><h2>Application default</h2><p>Changing the theme does not alter your product name, organization name, or logo configuration.</p></div>
+        <div class="form-field appearance-theme-field">
+            <label asp-for="ThemeName">Colour theme</label>
+            <select asp-for="ThemeName" class="form-select">
+                @if (Model.HasCustomTheme)
+                {
+                    <option value="@ThemePresetCatalog.Custom">Keep current custom palette</option>
+                }
+                <option value="@ThemePresetCatalog.OceanBlue">Ocean Blue</option>
+                <option value="@ThemePresetCatalog.MidnightPurple">Midnight Purple</option>
+                <option value="@ThemePresetCatalog.EmeraldGreen">Emerald Green</option>
+            </select>
+            <span class="field-hint">Saved in JSON settings and applied on the next request, including after sign-out and sign-in.</span>
+            <span asp-validation-for="ThemeName" class="field-validation"></span>
+        </div>
+        <div class="theme-preview-list" aria-label="Theme colour previews">
+            <div class="theme-preview theme-preview-ocean"><span></span><strong>Ocean Blue</strong><small>Blue accents · navy navigation</small></div>
+            <div class="theme-preview theme-preview-purple"><span></span><strong>Midnight Purple</strong><small>Purple accents · plum navigation</small></div>
+            <div class="theme-preview theme-preview-emerald"><span></span><strong>Emerald Green</strong><small>Green accents · forest navigation</small></div>
+        </div>
+        <p class="appearance-status-note"><span class="status-dot status-up-dot"></span> Device status colours remain fixed across themes: UP green, DOWN red, WARNING yellow, UNKNOWN gray.</p>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">Save application theme</button></div>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

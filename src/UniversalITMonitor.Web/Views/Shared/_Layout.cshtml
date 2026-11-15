@@ -1,0 +1,226 @@
+﻿@{
+    var brandModel = UniversalITMonitor.Web.ViewModels.AppBrandViewModelFactory.Create(
+        await Context.RequestServices.GetRequiredService<UniversalITMonitor.Application.Presentation.IAppPresentationService>().GetAsync());
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
+    var currentTitle = ViewData["Title"]?.ToString() ?? currentController;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isAdministrator = User.IsInRole(UniversalITMonitor.Core.Models.SystemRoles.Administrator);
+    var isServerFilter = string.Equals(Context.Request.Query["type"], "Server", StringComparison.OrdinalIgnoreCase);
+    var currentThemeName = brandModel.ThemeKey switch
+    {
+        "midnight-purple" => "Midnight Purple",
+        "emerald-green" => "Emerald Green",
+        "custom" => "Custom",
+        _ => "Ocean Blue"
+    };
+    var displayName = User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? User.Identity?.Name ?? "User";
+    var displayInitial = string.IsNullOrWhiteSpace(displayName) ? "U" : displayName.Trim()[0].ToString().ToUpperInvariant();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@currentTitle · AshPulse Infrastructure Monitor</title>
+    <meta name="theme-color" content="@brandModel.PrimaryColor" />
+    <meta name="description" content="AshPulse Infrastructure Monitor. Monitor Everything. Miss Nothing." />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32.png" asp-append-version="true" />
+    <link rel="shortcut icon" href="~/favicon.ico" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png" asp-append-version="true" />
+    <link rel="manifest" href="~/site.webmanifest" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/UniversalITMonitor.Web.styles.css" asp-append-version="true" />
+    <style>
+        :root {
+            --brand-primary: @brandModel.PrimaryColor;
+            --brand-sidebar: @brandModel.SidebarColor;
+            --brand-surface: @brandModel.SurfaceColor;
+            --brand-page: @brandModel.PageColor;
+            --brand-header: @brandModel.HeaderColor;
+            --brand-border: @brandModel.BorderColor;
+            --brand-ink: @brandModel.InkColor;
+            --brand-muted: @brandModel.MutedColor;
+            --brand-soft: @brandModel.SoftColor;
+        }
+    </style>
+</head>
+<body class="app-body @(isAuthenticated ? "is-authenticated" : "is-anonymous")" data-theme="@brandModel.ThemeKey">
+    <div class="app-layout">
+        <aside id="app-sidebar" class="app-sidebar" aria-label="Main navigation">
+            <a class="sidebar-brand" asp-controller="Home" asp-action="Index" aria-label="AshPulse overview">
+                <img src="~/images/brand/logo-horizontal-dark.svg" alt="AshPulse Infrastructure Monitor. Monitor Everything. Miss Nothing." width="184" height="35" />
+            </a>
+            @if (isAuthenticated)
+            {
+                <nav class="sidebar-nav" aria-label="Workspace navigation">
+                    <div class="sidebar-label">WORKSPACE</div>
+                    <a class="sidebar-link @(currentController == "Home" ? "active" : "")" asp-controller="Home" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"></rect></svg>
+                        <span>Overview</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Devices" && !isServerFilter ? "active" : "")" asp-controller="Devices" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"></rect><rect x="4" y="14" width="16" height="6" rx="1.5"></rect><path d="M8 7h.01M8 17h.01M12 7h5M12 17h5"></path></svg>
+                        <span>Network devices</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Devices" && isServerFilter ? "active" : "")" asp-controller="Devices" asp-action="Index" asp-route-type="Server">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="7" rx="1.5"></rect><rect x="4" y="13.5" width="16" height="7" rx="1.5"></rect><path d="M7 7h.01M7 17h.01M11 7h6m-6 10h6"></path></svg>
+                        <span>Servers</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "NetworkMaps" ? "active" : "")" asp-controller="NetworkMaps" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="6" height="5" rx="1"></rect><rect x="14.5" y="15" width="6" height="5" rx="1"></rect><rect x="14.5" y="4" width="6" height="5" rx="1"></rect><path d="M9.5 6.5h5m-8 2.5v8h8"></path></svg>
+                        <span>Topology</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Locations" ? "active" : "")" asp-controller="Locations" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"></path><circle cx="12" cy="10" r="2.3"></circle></svg>
+                        <span>Locations</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Groups" ? "active" : "")" asp-controller="Groups" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="6" rx="1.5"></rect><rect x="13.5" y="4" width="7" height="6" rx="1.5"></rect><rect x="8.5" y="14" width="7" height="6" rx="1.5"></rect><path d="M7 10v2h10v-2m-5 2v2"></path></svg>
+                        <span>Groups</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Ipam" ? "active" : "")" asp-controller="Ipam" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"></rect><path d="M3.5 9h17M8 4v5m8-5v5m-8 4h4m-4 3h8"></path></svg>
+                        <span>IPAM</span>
+                    </a>
+                    <a class="sidebar-link @(currentController == "Reports" ? "active" : "")" asp-controller="Reports" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"></path><path d="M3 20h18"></path></svg>
+                        <span>Reports</span>
+                    </a>
+                    @if (isAdministrator)
+                    {
+                        <div class="sidebar-label sidebar-label-spaced">ADMINISTRATION</div>
+                        <a class="sidebar-link @(currentController == "MonitoringSettings" && currentAction == "Index" ? "active" : "")" asp-controller="MonitoringSettings" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.6 2.8-.2-.1a1.7 1.7 0 0 0-1.9.2 1.7 1.7 0 0 0-.8 1.5v.2H8.7v-.2a1.7 1.7 0 0 0-2.6-1.5l-.2.1-1.6-2.8.1-.1A1.7 1.7 0 0 0 4 15l-.2-.1v-3.2L4 11.6a1.7 1.7 0 0 0 .3-1.9l-.1-.1 1.6-2.8.2.1a1.7 1.7 0 0 0 1.9-.2 1.7 1.7 0 0 0 .8-1.5V5h6.6v.2a1.7 1.7 0 0 0 2.6 1.5l.2-.1 1.6 2.8-.1.1a1.7 1.7 0 0 0-.3 1.9l.2.1v3.2l-.2.3Z"></path></svg>
+                            <span>Monitoring</span>
+                        </a>
+                        <a class="sidebar-link @(currentController == "Notifications" ? "active" : "")" asp-controller="Notifications" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                            <span>Alerts</span>
+                        </a>
+                        <a class="sidebar-link @(currentController == "UserAdministration" ? "active" : "")" asp-controller="UserAdministration" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3 20v-1a6 6 0 0 1 12 0v1m2-11a3 3 0 1 1 0 6m2 5v-1a5 5 0 0 0-3-4.6"></path></svg>
+                            <span>User management</span>
+                        </a>
+                        <a class="sidebar-link @(currentController == "Appearance" ? "active" : "")" asp-controller="Appearance" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 1.4-3.4 1.8 1.8 0 0 1 1.3-3.1H18a3 3 0 0 0 3-3c0-4.7-4-8.5-9-8.5Z"></path><circle cx="7.5" cy="11" r="1"></circle><circle cx="10" cy="7.5" r="1"></circle><circle cx="15" cy="8" r="1"></circle></svg>
+                            <span>Appearance</span>
+                        </a>
+                        <a class="sidebar-link @(currentController == "MonitoringSettings" && currentAction == "Integrity" ? "active" : "")" asp-controller="MonitoringSettings" asp-action="Integrity">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.3 8.2-8 10-4.7-1.8-8-5-8-10V6l8-3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>
+                            <span>Data integrity</span>
+                        </a>
+                        <a class="sidebar-link @(currentController == "Backups" ? "active" : "")" asp-controller="Backups" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h8L20 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"></path><path d="M8 4v5h8V6m-8 14v-6h8v6"></path></svg>
+                            <span>Backup &amp; restore</span>
+                        </a>
+                    }
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="sidebar-footer-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 19 6v5.4c0 4.1-2.8 7.5-7 9.1-4.2-1.6-7-5-7-9.1V6l7-2.5Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                    </div>
+                    <div>
+                        <span class="sidebar-footer-title">On-premises monitoring</span>
+                        <span class="sidebar-footer-copy">Your inventory stays local</span>
+                    </div>
+                </div>
+            }
+        </aside>
+
+        @if (isAuthenticated)
+        {
+            <button class="sidebar-scrim" type="button" data-sidebar-close aria-label="Close navigation"></button>
+        }
+
+        <div class="app-main">
+            <header class="topbar">
+                @if (isAuthenticated)
+                {
+                    <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <div class="topbar-heading">
+                        <div class="topbar-breadcrumb" aria-label="Breadcrumb">
+                            <a asp-controller="Home" asp-action="Index">Workspace</a>
+                            <span aria-hidden="true">/</span>
+                            <span aria-current="page">@currentTitle</span>
+                        </div>
+                        <div class="topbar-page-title">@currentTitle</div>
+                    </div>
+                    <form class="topbar-search" asp-controller="Search" asp-action="Index" method="get" role="search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"></circle><path d="m16 16 4.2 4.2"></path></svg>
+                        <label class="visually-hidden" for="global-search">Search devices, addresses, locations</label>
+                        <input id="global-search" type="search" name="q" value="@Context.Request.Query["q"]" placeholder="Search inventory" />
+                        <button type="submit">Search</button>
+                    </form>
+                    @if (isAdministrator)
+                    {
+                        <form class="topbar-theme-form" asp-controller="Appearance" asp-action="Index" method="post" aria-label="Application theme selector">
+                            <label class="visually-hidden" for="topbar-theme">Application theme</label>
+                            <select id="topbar-theme" name="ThemeName">
+                                <option value="Ocean Blue" selected="@(currentThemeName == "Ocean Blue" ? "selected" : null)">Ocean Blue</option>
+                                <option value="Midnight Purple" selected="@(currentThemeName == "Midnight Purple" ? "selected" : null)">Midnight Purple</option>
+                                <option value="Emerald Green" selected="@(currentThemeName == "Emerald Green" ? "selected" : null)">Emerald Green</option>
+                                @if (currentThemeName == "Custom")
+                                {
+                                    <option value="Custom" selected="selected">Custom palette</option>
+                                }
+                            </select>
+                            <button type="submit" aria-label="Save application theme" title="Save application theme">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+                            </button>
+                        </form>
+                    }
+                    @if (isAdministrator)
+                    {
+                        <a class="topbar-alert-link @(currentController == "Notifications" ? "active" : "")" asp-controller="Notifications" asp-action="Index" aria-label="Open alert and notification delivery history" title="Alert and notification delivery history">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                        </a>
+                    }
+                    <div class="user-menu">
+                        <div class="user-avatar" aria-hidden="true">@displayInitial</div>
+                        <div class="user-details">
+                            <span class="user-name">@displayName</span>
+                            <span class="user-role">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
+                        </div>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="logout-form">
+                            <button class="icon-button logout-button" type="submit" aria-label="Sign out" title="Sign out">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5.5A1.5 1.5 0 0 0 4 6.5v11A1.5 1.5 0 0 0 5.5 19H10"></path><path d="M14 8l4 4-4 4M18 12H9"></path></svg><span>Sign out</span>
+                            </button>
+                        </form>
+                    </div>
+                }
+                else
+                {
+                    <a class="anonymous-brand" asp-controller="Account" asp-action="Login">
+                        <img src="~/images/brand/sidebar-icon.svg" alt="" width="34" height="34" />
+                        <span>AshPulse <small>Infrastructure Monitor</small></span>
+                    </a>
+                    <div class="topbar-context"><span>Secure access</span></div>
+                }
+            </header>
+
+            <main class="page-content" role="main">
+                @RenderBody()
+            </main>
+
+            <footer class="app-footer">
+                <span>AshPulse Infrastructure Monitor</span>
+                <span>Monitor Everything. Miss Nothing.</span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (isAuthenticated)
+    {
+        <script src="~/js/devices.js" asp-append-version="true"></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

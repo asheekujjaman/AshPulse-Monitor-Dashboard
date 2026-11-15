@@ -1,0 +1,13 @@
+@model LocationDeleteViewModel
+@{
+    ViewData["Title"] = "Delete location";
+}
+<div class="page-heading"><div><div class="eyebrow">INVENTORY STRUCTURE</div><h1>Delete location</h1><p class="page-subtitle">@Model.Name</p></div><a class="app-secondary-button" asp-action="Index">Back to locations</a></div>
+@if (!string.IsNullOrWhiteSpace(Model.Error)) { <div class="notice notice-warning" role="alert">@Model.Error</div> }
+<section class="form-panel"><div class="form-section-heading"><h2>Review assignments</h2><p>@Model.DeviceCount device(s) are currently assigned directly to this location or building. Child locations must be moved first.</p></div>
+    <form asp-action="Delete" method="post" class="device-form"><input asp-for="Id" type="hidden" />
+        <div class="form-field"><label asp-for="ReassignToLocationId">Move affected devices to</label><select asp-for="ReassignToLocationId" class="form-select"><option value="">Choose a location</option>@foreach (var choice in Model.Choices) { <option value="@choice.Id">@choice.Name</option> }</select></div>
+        <label class="check-field"><input asp-for="ConfirmUnassignDevices" /><span><strong>Confirm unassignment</strong><small>Clear the affected location and building assignments while keeping every device record.</small></span></label>
+        <div class="form-actions"><button type="submit" class="app-danger-button">Delete location</button><a class="app-clear-link" asp-action="Index">Cancel</a></div>
+    </form>
+</section>

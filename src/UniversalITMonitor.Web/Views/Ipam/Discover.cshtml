@@ -1,0 +1,50 @@
+@model DeviceDiscoveryViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Discover IP addresses";
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">ADDRESS INVENTORY</div><h1>Discover subnet</h1><p class="page-subtitle">Scan a registered IPv4 subnet, review responding hosts, then add one or more IPAM records.</p></div>
+    <a class="app-secondary-button" asp-action="Index">Back to IPAM</a>
+</div>
+
+<div id="ipam-discovery" class="discovery-page" data-scan-url="@Url.Action("ScanSubnet", "Ipam")" data-add-url="@Url.Action("BatchAddDiscovered", "Ipam")">
+    <div id="ipam-discovery-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Scan a registered subnet</h2><p>Discovery uses ICMP from the application server. Only IPv4 subnets from /22 through /32 can be scanned.</p></div></div>
+        <form id="ipam-discovery-scan" class="discovery-scan-form">
+            <label class="discovery-field" for="ipam-discovery-subnet">Subnet<select class="form-select" id="ipam-discovery-subnet" required><option value="">Choose registered subnet</option>@foreach (var subnet in Model.RegisteredSubnets){<option value="@subnet.Cidr" selected="@(subnet.Cidr == Model.SubnetCidr)">@subnet.Cidr@(string.IsNullOrWhiteSpace(subnet.Location) ? "" : $" · {subnet.Location}")</option>}</select></label>
+            <label class="discovery-field" for="ipam-discovery-timeout">Ping timeout<select class="form-select" id="ipam-discovery-timeout"><option value="300">300 ms</option><option value="500" selected>500 ms</option><option value="1000">1 second</option><option value="2000">2 seconds</option></select></label>
+            <button class="app-primary-button btn" id="ipam-discovery-scan-button" type="submit" disabled="@(Model.RegisteredSubnets.Count == 0)">Scan subnet</button>
+        </form>
+    </section>
+    <div id="ipam-discovery-message" class="discovery-message" role="status" aria-live="polite" hidden></div>
+    <section class="panel-card discovery-results" id="ipam-discovery-results" hidden>
+        <div class="panel-heading discovery-results-heading"><div><h2>Responsive addresses</h2><p id="ipam-discovery-summary"></p></div><span class="discovery-selection-count" id="ipam-discovery-count">0 selected</span></div>
+        <div class="discovery-toolbar"><label class="discovery-select-all"><input id="ipam-discovery-select-all" type="checkbox" /> Select all new IPs</label></div>
+        <div class="table-responsive"><table class="device-table discovery-table"><thead><tr><th>Select</th><th>IP address</th><th>Suggested device name</th><th>Type</th><th>Ping</th><th>IPAM</th></tr></thead><tbody id="ipam-discovery-rows"></tbody></table></div>
+        <div class="ipam-discovery-fields">
+            <h3>Details for selected IPs</h3><p>Shared details apply to every selected record. Existing monitored devices are linked automatically.</p>
+            <div class="ipam-form-grid">
+                <label class="discovery-field">Device type<input class="form-control" id="ipam-discovery-type" maxlength="80" placeholder="Router, Server, Workstation…" /></label>
+                <label class="discovery-field">Assignment status<select class="form-select" id="ipam-discovery-status">@foreach (var status in Enum.GetValues<IpAssignmentStatus>()){<option value="@((int)status)" selected="@(status == IpAssignmentStatus.Assigned)">@status</option>}</select></label>
+                <label class="discovery-field">VLAN ID<input class="form-control" id="ipam-discovery-vlan" type="number" min="1" max="4094" /></label>
+                <label class="discovery-field">VLAN name<input class="form-control" id="ipam-discovery-vlan-name" maxlength="120" /></label>
+                <label class="discovery-field">Location<select class="form-select" id="ipam-discovery-location"><option value="">Use subnet location</option>@foreach (var item in Model.LocationChoices){<option value="@item.Id">@item.Name</option>}</select></label>
+                <label class="discovery-field">Building<select class="form-select" id="ipam-discovery-building"><option value="">Use subnet building</option>@foreach (var item in Model.BuildingChoices){<option value="@item.Id">@item.Name</option>}</select></label>
+                <label class="discovery-field">Group<select class="form-select" id="ipam-discovery-group"><option value="">Unassigned</option>@foreach (var item in Model.GroupChoices){<option value="@item.Id">@item.Name</option>}</select></label>
+                <label class="discovery-field">Switch name<input class="form-control" id="ipam-discovery-switch" maxlength="120" /></label>
+                <label class="discovery-field">Switch IP<input class="form-control" id="ipam-discovery-switch-ip" /></label>
+                <label class="discovery-field">Switch port<input class="form-control" id="ipam-discovery-port" maxlength="80" placeholder="Gi1/0/24" /></label>
+                <label class="discovery-field">MAC address<input class="form-control" id="ipam-discovery-mac" maxlength="32" placeholder="00:11:22:33:44:55" /></label>
+                <label class="discovery-field">Assigned to<input class="form-control" id="ipam-discovery-assigned-to" maxlength="160" /></label>
+                <label class="discovery-field">Department<input class="form-control" id="ipam-discovery-department" maxlength="120" /></label>
+                <label class="discovery-field discovery-description-field">Description<textarea class="form-control" id="ipam-discovery-description" maxlength="500" rows="2"></textarea></label>
+            </div>
+            <div class="form-actions"><button class="app-primary-button" id="ipam-discovery-add" type="button" disabled>Add selected to IPAM</button></div>
+        </div>
+    </section>
+</div>
+
+@section Scripts { <script src="~/js/ipam-discovery.js" asp-append-version="true"></script> }

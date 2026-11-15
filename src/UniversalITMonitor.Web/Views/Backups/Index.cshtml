@@ -1,0 +1,106 @@
+@model BackupIndexViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Backup and restore";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">SYSTEM RECOVERY</div>
+        <h1>Backup and restore</h1>
+        <p class="page-subtitle">Create verified JSON data archives and restore a full system or selected modules.</p>
+    </div>
+    <form asp-action="Create" method="post">
+        <button class="app-primary-button" type="submit" onclick="return confirm('Create and verify a complete backup now?')">Create full backup</button>
+    </form>
+</div>
+
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
+@if (Model.Error is not null) { <div class="notice notice-error" role="alert">@Model.Error</div> }
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Automatic backup</h2><p>Backups include JSON documents, monitoring history, samples, SNMP metrics and the Data Protection key ring.</p></div></div>
+    <form asp-action="SaveSettings" method="post" class="settings-form-grid">
+        <div class="form-field form-field-full">
+            <label asp-for="Settings.BackupDirectory">Backup directory</label>
+            <input asp-for="Settings.BackupDirectory" type="text" required autocomplete="off" />
+            <small>Use an absolute directory on protected storage, separate from the application data directory and web root.</small>
+        </div>
+        <div class="form-field">
+            <label asp-for="Settings.IntervalHours">Interval (hours)</label>
+            <input asp-for="Settings.IntervalHours" type="number" min="1" max="168" required />
+        </div>
+        <div class="form-field">
+            <label asp-for="Settings.RetentionCount">Automatic/manual backup retention</label>
+            <input asp-for="Settings.RetentionCount" type="number" min="1" max="365" required />
+            <small>Safety backups made before restore are retained separately.</small>
+        </div>
+        <div class="form-field form-field-full checkbox-field">
+            <input asp-for="Settings.AutomaticEnabled" type="checkbox" />
+            <label asp-for="Settings.AutomaticEnabled">Enable scheduled backups</label>
+        </div>
+        <div class="form-actions form-field-full">
+            <button class="app-primary-button" type="submit">Save backup settings</button>
+            @if (Model.Settings.NextAutomaticUtc is { } next)
+            {
+                <span class="muted-text">Next automatic backup: @next.ToLocalTime().ToString("g")</span>
+            }
+        </div>
+    </form>
+</section>
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Available backups <span class="record-count">@Model.Files.Count</span></h2><p>Select a backup to inspect its manifest and validate it before restoring.</p></div></div>
+    @if (Model.Files.Count == 0)
+    {
+        <div class="empty-state"><h3>No backup archives found</h3><p>Create a backup to start the recovery history.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Available backup archives">
+                <thead><tr><th>Archive</th><th>Created</th><th>Size</th><th>Kind</th><th>Actions</th></tr></thead>
+                <tbody>
+                @foreach (var file in Model.Files)
+                {
+                    <tr>
+                        <td><strong>@file.FileName</strong></td>
+                        <td>@file.CreatedUtc?.ToLocalTime().ToString("g")</td>
+                        <td>@(file.SizeBytes / (1024d * 1024) is var mb && mb >= 1024 ? $"{mb / 1024:0.0} GB" : $"{mb:0.0} MB")</td>
+                        <td>@(file.IsSafetyBackup ? "Safety backup" : "Application backup")</td>
+                        <td class="ipam-actions">
+                            <a class="app-secondary-button" asp-action="Preview" asp-route-fileName="@file.FileName">Validate and preview</a>
+                            <a class="app-secondary-button" asp-action="Download" asp-route-fileName="@file.FileName">Download ZIP</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Backup activity</h2><p>Failures are recorded without recording credentials or exception messages.</p></div></div>
+    @if (Model.History.Count == 0)
+    {
+        <div class="empty-state"><h3>No backup activity yet</h3></div>
+    }
+    else
+    {
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>Date</th><th>Operation</th><th>Result</th><th>Archive</th><th>Size</th><th>Details</th></tr></thead><tbody>
+        @foreach (var item in Model.History)
+        {
+            <tr>
+                <td>@item.OccurredUtc.ToLocalTime().ToString("g")</td>
+                <td>@item.Operation</td>
+                <td><span class="device-status status-@(item.Succeeded ? "up" : "down")"><span class="status-dot"></span>@(item.Succeeded ? "Succeeded" : "Failed")</span></td>
+                <td>@item.FileName</td>
+                <td>@(item.SizeBytes is null ? "—" : $"{item.SizeBytes / 1024d / 1024:0.0} MB")</td>
+                <td>@item.Details</td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</section>

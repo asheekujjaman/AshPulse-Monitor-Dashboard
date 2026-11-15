@@ -1,0 +1,39 @@
+@model DeviceImportViewModel
+@{
+    ViewData["Title"] = "Import devices";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">DEVICE MANAGEMENT</div>
+        <h1>Import devices</h1>
+        <p class="page-subtitle">Add multiple devices from a CSV inventory file.</p>
+    </div>
+    <a class="app-secondary-button" asp-action="Index">Back to devices</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <div class="notice @(Model.Errors.Count > 0 ? "notice-warning" : "notice-success")" role="status">@Model.Message</div>
+}
+@if (Model.Errors.Count > 0)
+{
+    <section class="panel-card import-results">
+        <div class="panel-heading"><div><h2>Import notes</h2><p>@Model.Errors.Count row(s) were skipped or imported with reduced settings.</p></div></div>
+        <ul>@foreach (var error in Model.Errors) { <li>@error</li> }</ul>
+    </section>
+}
+
+<section class="form-panel">
+    <form asp-action="Import" method="post" enctype="multipart/form-data" class="device-form">
+        <div class="form-section-heading"><h2>Choose a CSV file</h2><p>The import is limited to 2 MB. Duplicate IP addresses are skipped.</p></div>
+        <div class="form-field"><label for="file">CSV file</label><input class="form-control" id="file" name="file" type="file" accept=".csv,text/csv" required /></div>
+        <div class="csv-guidance">
+            <strong>Required columns</strong>
+            <p><code>DeviceName</code>, <code>IpAddress</code>. Optional: <code>DeviceType</code>, <code>Location</code>, <code>Group</code>, <code>Building</code>, <code>Description</code>, <code>MonitoringEnabled</code>.</p>
+            <p>Imports use ICMP monitoring. SNMP credentials are never exported, so SNMP devices from a CSV are imported as ICMP-only and can be configured afterwards.</p>
+            <a asp-action="ImportTemplate">Download CSV template</a>
+        </div>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">Import devices</button></div>
+    </form>
+</section>

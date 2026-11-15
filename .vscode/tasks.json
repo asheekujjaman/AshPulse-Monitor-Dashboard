@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Universal IT Monitor",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"run",
+				"--project",
+				"src/UniversalITMonitor.Web/UniversalITMonitor.Web.csproj",
+				"--launch-profile",
+				"http"
+			],
+			"isBackground": true,
+			"group": "build"
+		}
+	]
+}

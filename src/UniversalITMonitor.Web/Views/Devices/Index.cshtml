@@ -1,0 +1,91 @@
+@model DeviceListViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    var isServerInventory = Model.Type == DeviceType.Server;
+    ViewData["Title"] = isServerInventory ? "Servers" : "Network devices";
+    var canManage = User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator);
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">INVENTORY</div>
+        <h1>@ViewData["Title"]</h1>
+        <p class="page-subtitle">@(isServerInventory ? "Review server reachability and the latest available server metrics." : "Manage network devices and review their current reachability.")</p>
+    </div>
+    @if (canManage)
+    {
+        <div class="heading-actions">
+            <a class="app-secondary-button" asp-action="Export">Export CSV</a>
+            <a class="app-secondary-button" asp-action="Import">Import CSV</a>
+            <a class="app-secondary-button" asp-action="Discover">Discover subnet</a>
+            <a class="app-primary-link" asp-action="Create">Add device <span aria-hidden="true">+</span></a>
+        </div>
+    }
+    else
+    {
+        <a class="app-secondary-button" asp-action="Export">Export CSV</a>
+    }
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="notice notice-success" role="status">@success</div>
+}
+
+<section class="overview-grid device-overview-grid inventory-status-grid" aria-label="Device status counts" data-status-counts>
+    <article class="overview-card status-card status-card-total"><div class="card-label">IN INVENTORY</div><div class="card-value" data-inventory-total>@Model.TotalCount</div><div class="card-note">Devices registered</div></article>
+    <article class="overview-card status-card status-card-up"><div class="card-label">UP</div><div class="card-value" data-status-count="Up">@Model.UpCount</div><div class="card-note">Responding to ICMP checks</div></article>
+    <article class="overview-card status-card status-card-down"><div class="card-label">DOWN</div><div class="card-value" data-status-count="Down">@Model.DownCount</div><div class="card-note">Not responding to ICMP checks</div></article>
+    <article class="overview-card status-card status-card-unknown"><div class="card-label">UNKNOWN</div><div class="card-value" data-status-count="Unknown">@Model.UnknownCount</div><div class="card-note">Not checked yet or monitoring paused</div></article>
+</section>
+
+<section class="panel-card" data-status-url="@Url.Action("Status", "Devices")">
+    <form method="get" class="device-filters">
+        <div class="filter-search"><label class="visually-hidden" for="search">Search devices</label><input class="form-control" id="search" name="search" value="@Model.Search" placeholder="Search name, IP, location, group…" /></div>
+        <div><label class="visually-hidden" for="status">Status</label><select class="form-select" id="status" name="status"><option value="">All statuses</option>@foreach (var option in Enum.GetValues<DeviceStatus>()) { <option value="@option" selected="@(Model.Status == option)">@option</option> }</select></div>
+        <div><label class="visually-hidden" for="type">Device type</label><select class="form-select" id="type" name="type"><option value="">All types</option>@foreach (var option in Enum.GetValues<DeviceType>()) { <option value="@option" selected="@(Model.Type == option)">@DeviceLabels.Type(option)</option> }</select></div>
+        <div><label class="visually-hidden" for="location">Location</label><select class="form-select" id="location" name="location"><option value="">All locations</option>@foreach (var option in Model.Locations) { <option value="@option" selected="@(Model.Location == option)">@option</option> }</select></div>
+        <div><label class="visually-hidden" for="group">Group</label><select class="form-select" id="group" name="group"><option value="">All groups</option>@foreach (var option in Model.Groups) { <option value="@option" selected="@(Model.Group == option)">@option</option> }</select></div>
+        <div><label class="visually-hidden" for="monitoringEnabled">Monitoring</label><select class="form-select" id="monitoringEnabled" name="monitoringEnabled"><option value="">Any monitoring state</option><option value="true" selected="@(Model.MonitoringEnabled == true)">Monitoring enabled</option><option value="false" selected="@(Model.MonitoringEnabled == false)">Monitoring paused</option></select></div>
+        <div class="filter-actions"><button class="app-primary-button btn" type="submit">Filter</button><a asp-action="Index" class="app-clear-link">Clear</a></div>
+    </form>
+
+    @if (Model.Devices.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"></rect><rect x="4" y="14" width="16" height="6" rx="1.5"></rect></svg></div>
+            <h3>@(Model.TotalCount == 0 ? "No devices have been added" : "No devices match these filters")</h3>
+            <p>@(Model.TotalCount == 0 ? "Add a device by its name and IP address, or import a CSV inventory." : "Change or clear the filters to see other devices.")</p>
+            @if (canManage && Model.TotalCount == 0)
+            {
+                <a class="app-primary-button btn" asp-action="Create">Add first device</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Device inventory">
+                <thead><tr><th>Device / IP address</th><th>Status</th><th>Type</th><th>Location / group</th><th>Response</th><th>Current state</th><th>Last check</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var device in Model.Devices)
+                {
+                    <tr data-device-id="@device.Id" data-status="@device.Status" data-state-since="@device.CurrentStateSinceUtc?.ToString("O")" data-monitoring-enabled="@device.MonitoringEnabled.ToString().ToLowerInvariant()">
+                        <td><a class="device-name-link" asp-action="Details" asp-route-id="@device.Id">@device.Name</a><span class="device-ip copyable-ip" data-copy-ip="@device.IpAddress">@device.IpAddress</span></td>
+                        <td><span class="device-status status-@device.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span><span data-field="status">@device.Status</span></span></td>
+                        <td>@DeviceLabels.Type(device.Type)</td>
+                        <td><span class="device-meta-main">@(device.Location ?? "—")</span><span class="device-meta-sub">@(device.Group ?? device.Building ?? "Unassigned")</span></td>
+                        <td data-field="response">@(device.ResponseTimeMilliseconds is null ? "—" : $"{device.ResponseTimeMilliseconds} ms")</td>
+                        <td data-field="duration">@(device.CurrentStateSinceUtc is null ? "Not checked" : $"{device.Status} since {device.CurrentStateSinceUtc.Value.ToLocalTime():MMM d, HH:mm}")</td>
+                        <td data-field="last-check">@(device.LastCheckUtc?.ToLocalTime().ToString("MMM d, HH:mm") ?? "—")</td>
+                        <td><a class="table-action-link" asp-action="Details" asp-route-id="@device.Id">Details</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="panel-footer"><span>Showing @Model.Devices.Count of @Model.TotalCount device(s)</span><span>Auto-refreshes every 10 seconds</span></div>
+    }
+</section>
+
+<div class="monitoring-footnote"><span class="context-dot"></span> Device health is based on the latest ICMP response. SNMP metrics are collected separately when configured.</div>

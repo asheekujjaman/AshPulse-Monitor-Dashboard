@@ -1,0 +1,19 @@
+@model IpamSubnetEditViewModel
+@{
+    var isEdit = Model.Subnet.Id != Guid.Empty;
+    ViewData["Title"] = isEdit ? "Edit subnet" : "Register subnet";
+}
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>@ViewData["Title"]</h1><p class="page-subtitle">Subnet registration only records inventory boundaries. It does not configure network devices.</p></div></div>
+<form asp-action="@(isEdit ? "EditSubnet" : "CreateSubnet")" method="post" class="form-panel ipam-subnet-form">
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <input asp-for="Subnet.Id" type="hidden" />
+    <label asp-for="Subnet.Cidr">Subnet CIDR<input asp-for="Subnet.Cidr" class="form-control" placeholder="192.0.2.0/24" /><span asp-validation-for="Subnet.Cidr" class="field-validation"></span></label>
+    <div class="ipam-form-grid">
+        <label asp-for="Subnet.VlanId">VLAN ID<input asp-for="Subnet.VlanId" type="number" min="1" max="4094" class="form-control" /></label>
+        <label asp-for="Subnet.VlanName">VLAN name<input asp-for="Subnet.VlanName" maxlength="120" class="form-control" /></label>
+        <label asp-for="Subnet.LocationId">Location<select asp-for="Subnet.LocationId" class="form-select"><option value="">Unassigned</option>@foreach(var item in Model.Locations){<option value="@item.Id">@item.Name</option>}</select></label>
+        <label asp-for="Subnet.BuildingId">Building<select asp-for="Subnet.BuildingId" class="form-select"><option value="">Unassigned</option>@foreach(var item in Model.Buildings){<option value="@item.Id">@item.Name</option>}</select></label>
+        <label asp-for="Subnet.Description" class="ipam-description">Description<textarea asp-for="Subnet.Description" maxlength="500" rows="3" class="form-control"></textarea></label>
+    </div>
+    <div class="form-actions"><a class="app-secondary-button" asp-action="Subnets">Cancel</a><button type="submit" class="app-primary-button">Save subnet</button></div>
+</form>

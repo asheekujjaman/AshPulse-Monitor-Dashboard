@@ -1,0 +1,32 @@
+@model LocationDetailsViewModel
+@{
+    ViewData["Title"] = Model.Summary.Location.Name;
+}
+
+<div class="page-heading">
+    <div><div class="eyebrow">LOCATION</div><h1>@Model.Summary.Path</h1><p class="page-subtitle">@Model.Summary.Location.Kind · @Model.Summary.DeviceCount device(s) in this location and its children.</p></div>
+    <div class="heading-actions"><a class="app-secondary-button" asp-action="Index">Back to locations</a><a class="app-secondary-button" asp-controller="Groups" asp-action="Index">Groups</a></div>
+</div>
+
+<section class="overview-grid device-overview-grid" aria-label="Location device status">
+    <article class="overview-card status-card status-card-up"><div class="card-label">UP</div><div class="card-value">@Model.Summary.UpCount</div></article>
+    <article class="overview-card status-card status-card-down"><div class="card-label">DOWN</div><div class="card-value">@Model.Summary.DownCount</div></article>
+    <article class="overview-card status-card status-card-unknown"><div class="card-label">UNKNOWN</div><div class="card-value">@Model.Summary.UnknownCount</div></article>
+</section>
+
+<section class="panel-card">
+    <div class="panel-heading"><div><h2>Devices</h2><p>Current status and addresses come from the device inventory.</p></div></div>
+    @if (Model.Devices.Count == 0) { <div class="empty-inline">No devices are assigned under this location.</div> }
+    else
+    {
+        <div class="table-responsive"><table class="device-table" aria-label="Devices in location">
+            <thead><tr><th>Device / IP address</th><th>Status</th><th>Group</th><th>Response</th><th>Last check</th></tr></thead>
+            <tbody>@foreach (var device in Model.Devices) { <tr>
+                <td><a class="device-name-link" asp-controller="Devices" asp-action="Details" asp-route-id="@device.Id">@device.Name</a><span class="device-ip copyable-ip" data-copy-ip="@device.IpAddress">@device.IpAddress</span></td>
+                <td><span class="device-status status-@device.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span>@device.Status</span></td>
+                <td>@(device.Group ?? "Unassigned")</td><td>@(device.ResponseTimeMilliseconds is null ? "—" : $"{device.ResponseTimeMilliseconds} ms")</td>
+                <td>@(device.LastCheckUtc?.ToLocalTime().ToString("MMM d, HH:mm:ss") ?? "—")</td>
+            </tr> }</tbody>
+        </table></div>
+    }
+</section>

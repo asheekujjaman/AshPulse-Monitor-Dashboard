@@ -1,0 +1,382 @@
+﻿@model DashboardViewModel
+@using System.Globalization
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Overview";
+    var upWidth = Model.UpPercent.ToString("0.##", CultureInfo.InvariantCulture);
+    var downWidth = Model.DownPercent.ToString("0.##", CultureInfo.InvariantCulture);
+    var unknownWidth = Model.UnknownPercent.ToString("0.##", CultureInfo.InvariantCulture);
+}
+
+<div class="page-heading dashboard-heading">
+    <div>
+        <div class="eyebrow">ASH PULSE / OPERATIONS</div>
+        <h1>Infrastructure overview</h1>
+        <p class="page-subtitle">Monitor Everything. Miss Nothing. Live reachability and inventory across your infrastructure.</p>
+    </div>
+    <div class="dashboard-heading-actions">
+        <span class="dashboard-live-indicator"><span class="context-dot"></span>Live status · 10 second refresh</span>
+        @if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator))
+        {
+            <a class="app-primary-button btn" asp-controller="Devices" asp-action="Create">Add device</a>
+        }
+    </div>
+</div>
+
+<section class="ash-kpi-grid" aria-label="Infrastructure summary" data-status-counts>
+    <article class="ash-kpi-card kpi-total">
+        <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="7" rx="1.5"></rect><rect x="4" y="13.5" width="16" height="7" rx="1.5"></rect><path d="M7 7h.01M7 17h.01M11 7h6m-6 10h6"></path></svg></div>
+        <div class="ash-kpi-label">Total devices</div>
+        <div class="ash-kpi-value" data-inventory-total>@Model.TotalCount</div>
+        <div class="ash-kpi-note">@Model.MonitoringEnabledCount monitoring enabled</div>
+    </article>
+    <article class="ash-kpi-card kpi-up">
+        <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></div>
+        <div class="ash-kpi-label">Devices up</div>
+        <div class="ash-kpi-value" data-status-count="Up">@Model.UpCount</div>
+        <div class="ash-kpi-note">Responding to ICMP checks</div>
+    </article>
+    <article class="ash-kpi-card kpi-down">
+        <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
+        <div class="ash-kpi-label">Devices down</div>
+        <div class="ash-kpi-value" data-status-count="Down">@Model.DownCount</div>
+        <div class="ash-kpi-note">Not responding to ICMP checks</div>
+    </article>
+    <article class="ash-kpi-card kpi-unknown">
+        <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M9.7 9a2.4 2.4 0 1 1 4.1 1.7c-1 .9-1.8 1.2-1.8 2.8M12 17h.01"></path></svg></div>
+        <div class="ash-kpi-label">Unknown</div>
+        <div class="ash-kpi-value" data-status-count="Unknown">@Model.UnknownCount</div>
+        <div class="ash-kpi-note">Not checked yet or monitoring paused</div>
+    </article>
+    <article class="ash-kpi-card kpi-availability">
+        <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12h4l2.2-5 4.1 10 2.2-5h4.5"></path></svg></div>
+        <div class="ash-kpi-label">7 day availability</div>
+        <div class="ash-kpi-value ash-kpi-value-small">@(Model.CurrentAvailabilityPercent is null ? "Unavailable" : $"{Model.CurrentAvailabilityPercent:F2}%")</div>
+        <div class="ash-kpi-note">@(Model.AvailabilityCoveragePercent is null ? "No device history recorded" : $"{Model.AvailabilityCoveragePercent:F1}% of device time classified")</div>
+    </article>
+</section>
+
+<section class="dashboard-primary-grid" aria-label="Infrastructure health and response history">
+    <article class="panel-card dashboard-health-card" data-status-url="@Url.Action("Status", "Devices")">
+        <div class="panel-heading">
+            <div><h2>Overall infrastructure health</h2><p>Current monitored status across the device inventory</p></div>
+            <a class="panel-heading-link" asp-controller="Devices" asp-action="Index">Device inventory</a>
+        </div>
+        <div class="dashboard-health-body">
+            <div class="health-status-summary">
+                <div class="health-status-summary-value" data-inventory-total>@Model.TotalCount</div>
+                <div><strong>Devices in inventory</strong><span>@Model.MonitoringEnabledCount currently enabled for checks</span></div>
+            </div>
+            @if (Model.TotalCount > 0)
+            {
+                <div class="health-stack" role="img" aria-label="Device status distribution: @Model.UpCount up, @Model.DownCount down, @Model.UnknownCount unknown">
+                    <span class="health-segment health-segment-up" style="width:@upWidth%" data-status-share="Up"></span>
+                    <span class="health-segment health-segment-down" style="width:@downWidth%" data-status-share="Down"></span>
+                    <span class="health-segment health-segment-unknown" style="width:@unknownWidth%" data-status-share="Unknown"></span>
+                </div>
+                <div class="health-legend">
+                    <div><span class="legend-swatch up"></span><span>Up</span><strong data-status-count="Up">@Model.UpCount</strong></div>
+                    <div><span class="legend-swatch down"></span><span>Down</span><strong data-status-count="Down">@Model.DownCount</strong></div>
+                    <div><span class="legend-swatch unknown"></span><span>Unknown</span><strong data-status-count="Unknown">@Model.UnknownCount</strong></div>
+                </div>
+                <p class="dashboard-health-note">
+                    @if (Model.DownCount > 0)
+                    {
+                        <span class="status-dot status-down"></span><span>@Model.DownCount device(s) are currently unreachable.</span>
+                    }
+                    else if (Model.UnknownCount > 0)
+                    {
+                        <span class="status-dot status-warning"></span><span>No devices are currently down; @Model.UnknownCount are waiting for a first check or paused.</span>
+                    }
+                    else
+                    {
+                        <span class="status-dot status-up"></span><span>All inventoried devices are responding to their latest checks.</span>
+                    }
+                </p>
+            }
+            else
+            {
+                <div class="dashboard-empty-chart">
+                    <span class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"></rect><rect x="4" y="14" width="16" height="6" rx="1.5"></rect></svg></span>
+                    <strong>No devices to monitor yet</strong>
+                    <span>Add an inventory device to start collecting real status data.</span>
+                </div>
+            }
+        </div>
+    </article>
+
+    <article class="panel-card dashboard-response-card">
+        <div class="panel-heading">
+            <div><h2>Network response time</h2><p>Average successful ICMP samples per day · trailing 7 days</p></div>
+            <span class="chart-unit">ms</span>
+        </div>
+        <div class="dashboard-chart-summary">
+            <strong>@(Model.AverageResponseTimeMilliseconds is null ? "Unavailable" : $"{Model.AverageResponseTimeMilliseconds} ms")</strong>
+            <span>@(Model.DevicesWithCurrentResponse == 0 ? "No current successful responses" : $"Latest checks from {Model.DevicesWithCurrentResponse} device(s)")</span>
+        </div>
+        @if (Model.ResponseSampleCount > 0)
+        {
+            <div class="dashboard-bars" role="img" aria-label="Daily average response time based on @Model.ResponseSampleCount persisted successful checks">
+                @foreach (var point in Model.ResponseHistory)
+                {
+                    <div class="dashboard-bar-column" title="@(point.AverageResponseMilliseconds is null ? $"{point.Label}: no samples" : $"{point.Label}: {point.AverageResponseMilliseconds} ms average from {point.SampleCount} check(s)")">
+                        <div class="dashboard-bar-track">
+                            @if (point.AverageResponseMilliseconds is long average)
+                            {
+                                <span class="dashboard-bar response-bar" style="height:@(point.HeightPercent < 3 ? "3" : point.HeightPercent.ToString("0.##", CultureInfo.InvariantCulture))%"></span>
+                            }
+                            else
+                            {
+                                <span class="dashboard-bar-empty" aria-hidden="true"></span>
+                            }
+                        </div>
+                        <span class="dashboard-bar-label">@point.Label</span>
+                    </div>
+                }
+            </div>
+            <div class="chart-footnote">Only persisted successful checks are charted. Empty dates have no response samples.</div>
+        }
+        else
+        {
+            <div class="dashboard-chart-empty">No persisted response samples are available for the last 7 days.</div>
+        }
+    </article>
+</section>
+
+<section class="dashboard-secondary-grid" aria-label="Availability and server performance">
+    <article class="panel-card dashboard-availability-card">
+        <div class="panel-heading">
+            <div><h2>Device availability history</h2><p>Observed UP time by day · trailing 7 days · unknown time excluded</p></div>
+            <span class="chart-unit">%</span>
+        </div>
+        <div class="dashboard-chart-summary">
+            <strong>@(Model.CurrentAvailabilityPercent is null ? "Unavailable" : $"{Model.CurrentAvailabilityPercent:F2}%")</strong>
+            <span>
+                @if (Model.AvailabilityCoveragePercent is double coverage)
+                {
+                    <span>@coverage.ToString("F1")% coverage across @Model.DevicesWithAvailabilityHistory device(s) with recorded history</span>
+                }
+                else
+                {
+                    <span>No availability history recorded</span>
+                }
+            </span>
+        </div>
+        @if (Model.AvailabilityHistory.Any(point => point.AvailabilityPercent.HasValue))
+        {
+            <div class="dashboard-bars availability-bars" role="img" aria-label="Daily availability history. Coverage is shown in each bar tooltip.">
+                @foreach (var point in Model.AvailabilityHistory)
+                {
+                    <div class="dashboard-bar-column" title="@(point.AvailabilityPercent is double availability ? $"{point.Label}: {availability:F2}% observed availability, {point.CoveragePercent:F1}% coverage" : $"{point.Label}: availability unavailable")">
+                        <div class="dashboard-bar-track">
+                            @if (point.AvailabilityPercent is double value)
+                            {
+                                <span class="dashboard-bar availability-bar" style="height:@(value < 3 ? "3" : value.ToString("0.##", CultureInfo.InvariantCulture))%"></span>
+                            }
+                            else
+                            {
+                                <span class="dashboard-bar-empty" aria-hidden="true"></span>
+                            }
+                        </div>
+                        <span class="dashboard-bar-label">@point.Label</span>
+                    </div>
+                }
+            </div>
+            <div class="chart-footnote">Availability is calculated from persisted status transitions. Coverage identifies known UP or DOWN time.</div>
+        }
+        else
+        {
+            <div class="dashboard-chart-empty">Availability is unavailable until status transition history has been recorded.</div>
+        }
+    </article>
+
+    <article class="panel-card dashboard-server-card">
+        <div class="panel-heading">
+            <div><h2>Server performance</h2><p>Latest SNMP CPU and memory readings where supported</p></div>
+            <a class="panel-heading-link" asp-controller="Devices" asp-action="Index" asp-route-type="Server">View servers</a>
+        </div>
+        @if (Model.Servers.Count == 0)
+        {
+            <div class="dashboard-chart-empty">No server devices are configured in the inventory.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="device-table dashboard-server-table" aria-label="Latest server performance metrics">
+                    <thead><tr><th>Server</th><th>CPU</th><th>Memory</th><th>SNMP sample</th></tr></thead>
+                    <tbody>
+                    @foreach (var server in Model.Servers.Take(5))
+                    {
+                        <tr>
+                            <td><a class="device-name-link" asp-controller="Devices" asp-action="Details" asp-route-id="@server.Id">@server.Name</a><span class="device-ip copyable-ip" data-copy-ip="@server.IpAddress">@server.IpAddress</span></td>
+                            <td>@(server.LatestSnmpMetrics?.CpuUtilizationPercent is double cpu ? $"{cpu:F1}%" : "Not reported")</td>
+                            <td>@(server.LatestSnmpMetrics?.MemoryUtilizationPercent is double memory ? $"{memory:F1}%" : "Not reported")</td>
+                            <td>@(server.LatestSnmpMetrics?.CollectedUtc.ToLocalTime().ToString("MMM d, HH:mm") ?? "No sample")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="chart-footnote">Metrics depend on device SNMP configuration and support for the standard MIB tables.</div>
+        }
+    </article>
+</section>
+
+<section class="dashboard-secondary-grid dashboard-operations-grid" aria-label="Recent alerts and location health">
+    <article class="panel-card dashboard-alerts-card">
+        <div class="panel-heading">
+            <div><h2>Recent alerts</h2><p>Persisted device status transitions · @Model.RecentNotificationEventCount in the latest 100 records</p></div>
+            @if (User.IsInRole(SystemRoles.Administrator))
+            {
+                <a class="panel-heading-link" asp-controller="Notifications" asp-action="Index">Delivery history</a>
+            }
+        </div>
+        @if (Model.RecentAlertTransitions.Count == 0)
+        {
+            <div class="dashboard-chart-empty">No device status transitions are recorded in the latest notification history.</div>
+        }
+        else
+        {
+            <div class="dashboard-alert-list">
+                @foreach (var alert in Model.RecentAlertTransitions)
+                {
+                    var alertClass = alert.Status switch
+                    {
+                        DeviceStatus.Up => "status-up",
+                        DeviceStatus.Down => "status-down",
+                        _ => "status-unknown"
+                    };
+                    var alertText = alert.PreviousStatus is DeviceStatus previous && alert.Status is DeviceStatus status
+                        ? $"{previous} → {status}"
+                        : alert.Status?.ToString() ?? "Status transition";
+                    var deliveryText = alert.Deliveries.Count == 0
+                        ? "No delivery attempts recorded"
+                        : alert.Deliveries.Any(delivery => delivery.DeadLettered)
+                            ? "Delivery requires attention"
+                            : alert.Deliveries.All(delivery => delivery.Succeeded)
+                                ? "Delivered"
+                                : "Delivery pending";
+                    <div class="dashboard-alert-row">
+                        <span class="device-status @alertClass"><span class="status-dot"></span>@alertText</span>
+                        <div class="dashboard-alert-copy">
+                            <strong>@(alert.DeviceName ?? "Device")</strong>
+                            <span>@if (!string.IsNullOrWhiteSpace(alert.IpAddress)) { <span class="copyable-ip" data-copy-ip="@alert.IpAddress">@alert.IpAddress</span> } else { <span>Address unavailable</span> } · @deliveryText</span>
+                        </div>
+                        <time datetime="@alert.OccurredUtc.ToString("O")">@alert.OccurredUtc.ToLocalTime().ToString("MMM d, HH:mm")</time>
+                    </div>
+                }
+            </div>
+        }
+        @if (Model.RecentNotificationFailureCount > 0)
+        {
+            <div class="dashboard-alert-footnote">@Model.RecentNotificationFailureCount failed delivery attempt(s) in the latest 100 notification records.</div>
+        }
+    </article>
+
+    <article class="panel-card dashboard-locations-card">
+        <div class="panel-heading">
+            <div><h2>Location health</h2><p>Current device status at each configured site</p></div>
+            <a class="panel-heading-link" asp-controller="Locations" asp-action="Index">All locations</a>
+        </div>
+        @if (Model.Locations.Count == 0)
+        {
+            <div class="dashboard-chart-empty">No locations are configured.</div>
+        }
+        else
+        {
+            <div class="dashboard-summary-list">
+                @foreach (var location in Model.Locations)
+                {
+                    <a asp-controller="Locations" asp-action="Details" asp-route-id="@location.Location.Id">
+                        <strong>@location.Path</strong>
+                        <span>@location.DeviceCount device(s) · <i class="status-text-up">@location.UpCount up</i> · <i class="status-text-down">@location.DownCount down</i> · @location.UnknownCount unknown</span>
+                    </a>
+                }
+            </div>
+        }
+    </article>
+</section>
+
+<section class="dashboard-secondary-grid dashboard-inventory-grid">
+    <article class="panel-card dashboard-groups-card">
+        <div class="panel-heading">
+            <div><h2>Group health</h2><p>Current status across nested groups</p></div>
+            <a class="panel-heading-link" asp-controller="Groups" asp-action="Index">All groups</a>
+        </div>
+        @if (Model.Groups.Count == 0)
+        {
+            <div class="dashboard-chart-empty">No groups are configured.</div>
+        }
+        else
+        {
+            <div class="dashboard-summary-list">
+                @foreach (var group in Model.Groups)
+                {
+                    <a asp-controller="Groups" asp-action="Details" asp-route-id="@group.Group.Id">
+                        <strong>@group.Path</strong>
+                        <span>@group.DeviceCount device(s) · <i class="status-text-up">@group.UpCount up</i> · <i class="status-text-down">@group.DownCount down</i> · @group.UnknownCount unknown</span>
+                    </a>
+                }
+            </div>
+        }
+    </article>
+
+    <article class="panel-card dashboard-ipam-card">
+        <div class="panel-heading">
+            <div><h2>IP address inventory</h2><p>@Model.IpamAddressCount address record(s) in the current inventory</p></div>
+            <a class="panel-heading-link" asp-controller="Ipam" asp-action="Index">Open IPAM</a>
+        </div>
+        @if (Model.IpamAddressCount == 0)
+        {
+            <div class="dashboard-chart-empty">No IP address records are configured.</div>
+        }
+        else
+        {
+            <div class="ipam-dashboard-stats">
+                <span><strong>@Model.IpamAssignedCount</strong>Assigned</span>
+                <span><strong>@Model.IpamAvailableCount</strong>Available</span>
+                <span><strong>@Model.IpamReservedCount</strong>Reserved</span>
+                <span><strong>@Model.IpamConflictCount</strong>Conflict</span>
+            </div>
+        }
+    </article>
+</section>
+
+<section class="panel-card dashboard-devices-card" data-status-url="@Url.Action("Status", "Devices")">
+    <div class="panel-heading">
+        <div><h2>Recent device checks</h2><p><span data-inventory-total>@Model.TotalCount</span> device(s) in inventory · latest recorded reachability</p></div>
+        <a class="panel-heading-link" asp-controller="Devices" asp-action="Index">Open network devices</a>
+    </div>
+    @if (Model.Devices.Count == 0)
+    {
+        <div class="empty-state dashboard-empty-devices">
+            <div class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"></rect><rect x="4" y="14" width="16" height="6" rx="1.5"></rect></svg></div>
+            <h3>No devices have been added</h3>
+            <p>Add a device by its name and IP address. ICMP checks will begin automatically.</p>
+            @if (User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator))
+            {
+                <a class="app-primary-button btn" asp-controller="Devices" asp-action="Create">Add first device</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table dashboard-device-table" aria-label="Recently checked devices">
+                <thead><tr><th>Device</th><th>Status</th><th>Response</th><th>Current state</th><th>Last check</th></tr></thead>
+                <tbody>
+                @foreach (var device in Model.Devices)
+                {
+                    <tr data-device-id="@device.Id" data-status="@device.Status" data-state-since="@device.CurrentStateSinceUtc?.ToString("O")" data-monitoring-enabled="@device.MonitoringEnabled.ToString().ToLowerInvariant()">
+                        <td><a class="device-name-link" asp-controller="Devices" asp-action="Details" asp-route-id="@device.Id">@device.Name</a><span class="device-ip copyable-ip" data-copy-ip="@device.IpAddress">@device.IpAddress</span></td>
+                        <td><span class="device-status status-@device.Status.ToString().ToLowerInvariant()"><span class="status-dot"></span><span data-field="status">@device.Status</span></span></td>
+                        <td data-field="response">@(device.ResponseTimeMilliseconds is null ? "—" : $"{device.ResponseTimeMilliseconds} ms")</td>
+                        <td data-field="duration">@(device.CurrentStateSinceUtc is null ? "Not checked" : $"{device.Status} since {device.CurrentStateSinceUtc.Value.ToLocalTime():MMM d, HH:mm}")</td>
+                        <td data-field="last-check">@(device.LastCheckUtc?.ToLocalTime().ToString("MMM d, HH:mm") ?? "—")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

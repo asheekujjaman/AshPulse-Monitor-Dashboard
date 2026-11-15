@@ -1,0 +1,70 @@
+@model DeviceEditViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = Model.IsEditing ? "Edit device" : "Add device";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">DEVICE MANAGEMENT</div>
+        <h1>@(Model.IsEditing ? "Edit device" : "Add device")</h1>
+        <p class="page-subtitle">Set the device name and IP address. Monitoring options can be added at any time.</p>
+    </div>
+    <a class="app-secondary-button" asp-action="Index">Back to devices</a>
+</div>
+
+<section class="form-panel">
+    <form asp-action="@(Model.IsEditing ? "Edit" : "Create")" method="post" class="device-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <input asp-for="Id" type="hidden" />
+        <div class="form-section-heading"><h2>Device information</h2><p>Only a device name and IP address are required.</p></div>
+        <div class="form-grid">
+            <div class="form-field"><label asp-for="Name"></label><input asp-for="Name" class="form-control" autocomplete="off" /><span asp-validation-for="Name" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="IpAddress"></label><input asp-for="IpAddress" class="form-control" placeholder="192.168.1.10 or 2001:db8::10" autocomplete="off" /><span asp-validation-for="IpAddress" class="field-validation"></span></div>
+            <div class="form-field"><label asp-for="Type"></label><select asp-for="Type" asp-items="Html.GetEnumSelectList<DeviceType>()" class="form-select"></select></div>
+            <div class="form-field"><label asp-for="MonitoringMethod"></label><select asp-for="MonitoringMethod" asp-items="Html.GetEnumSelectList<MonitoringMethod>()" class="form-select" id="monitoring-method"></select><span class="field-hint">ICMP checks reachability. SNMP adds read-only system and interface metrics.</span></div>
+            <div class="form-field"><label asp-for="LocationId">Location</label><select asp-for="LocationId" class="form-select"><option value="">Unassigned</option>@foreach (var option in Model.LocationChoices) { <option value="@option.Id">@option.Name</option> }</select><span class="field-hint">Choose a site or area.</span></div>
+            <div class="form-field"><label asp-for="BuildingId">Building</label><select asp-for="BuildingId" class="form-select"><option value="">Unassigned</option>@foreach (var option in Model.BuildingChoices) { <option value="@option.Id">@option.Name</option> }</select></div>
+            <div class="form-field"><label asp-for="GroupId">Group</label><select asp-for="GroupId" class="form-select"><option value="">Unassigned</option>@foreach (var option in Model.GroupChoices) { <option value="@option.Id">@option.Name</option> }</select></div>
+            <div class="form-field form-field-wide"><label asp-for="Description"></label><textarea asp-for="Description" class="form-control" rows="3"></textarea><span asp-validation-for="Description" class="field-validation"></span></div>
+            <label class="check-field"><input asp-for="MonitoringEnabled" /><span><strong>Monitoring enabled</strong><small>Disabled devices remain visible in inventory but receive no checks.</small></span></label>
+        </div>
+
+        <div class="form-section-heading snmp-section" id="snmp-fields-heading"><h2>SNMP read-only configuration</h2><p>Secrets are encrypted in local storage and are never included in CSV exports.</p></div>
+        <div class="form-grid snmp-section" id="snmp-fields">
+            <div class="form-field"><label asp-for="SnmpVersion"></label><select asp-for="SnmpVersion" asp-items="Html.GetEnumSelectList<SnmpVersion>()" class="form-select" id="snmp-version"></select></div>
+            <div class="form-field"><label asp-for="SnmpPort"></label><input asp-for="SnmpPort" class="form-control" /><span asp-validation-for="SnmpPort" class="field-validation"></span></div>
+            <div class="form-field snmp-v2"><label asp-for="SnmpCommunity"></label><input asp-for="SnmpCommunity" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSnmpCommunity ? "A community string is stored. Leave blank to keep it." : "Required for SNMP v2c.")</span></div>
+            <div class="form-field snmp-v3"><label asp-for="SnmpUserName"></label><input asp-for="SnmpUserName" class="form-control" autocomplete="off" /></div>
+            <div class="form-field snmp-v3"><label asp-for="SnmpSecurityLevel"></label><select asp-for="SnmpSecurityLevel" asp-items="Html.GetEnumSelectList<SnmpSecurityLevel>()" class="form-select" id="snmp-security"></select></div>
+            <div class="form-field snmp-v3 snmp-auth"><label asp-for="SnmpAuthenticationProtocol"></label><select asp-for="SnmpAuthenticationProtocol" asp-items="Html.GetEnumSelectList<SnmpAuthenticationProtocol>()" class="form-select"></select></div>
+            <div class="form-field snmp-v3 snmp-auth"><label asp-for="SnmpAuthenticationPassword"></label><input asp-for="SnmpAuthenticationPassword" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSnmpAuthenticationPassword ? "A password is stored. Leave blank to keep it." : "Required for authNoPriv and authPriv.")</span></div>
+            <div class="form-field snmp-v3 snmp-privacy"><label asp-for="SnmpPrivacyProtocol"></label><select asp-for="SnmpPrivacyProtocol" asp-items="Html.GetEnumSelectList<SnmpPrivacyProtocol>()" class="form-select"></select></div>
+            <div class="form-field snmp-v3 snmp-privacy"><label asp-for="SnmpPrivacyPassword"></label><input asp-for="SnmpPrivacyPassword" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSnmpPrivacyPassword ? "A password is stored. Leave blank to keep it." : "Required for authPriv.")</span></div>
+        </div>
+        <div class="form-actions"><button type="submit" class="app-primary-button btn">@(Model.IsEditing ? "Save changes" : "Add device")</button><a class="app-clear-link" asp-action="Index">Cancel</a></div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const method = document.getElementById('monitoring-method');
+            const version = document.getElementById('snmp-version');
+            const security = document.getElementById('snmp-security');
+            const update = () => {
+                const enabled = method.value === '@((int)MonitoringMethod.IcmpAndSnmp)';
+                document.querySelectorAll('.snmp-section').forEach(item => item.classList.toggle('is-hidden', !enabled));
+                document.querySelectorAll('.snmp-v2').forEach(item => item.classList.toggle('is-hidden', !enabled || version.value !== '@((int)SnmpVersion.V2c)'));
+                document.querySelectorAll('.snmp-v3').forEach(item => item.classList.toggle('is-hidden', !enabled || version.value !== '@((int)SnmpVersion.V3)'));
+                document.querySelectorAll('.snmp-auth').forEach(item => item.classList.toggle('is-hidden', security.value === '@((int)SnmpSecurityLevel.NoAuthNoPriv)'));
+                document.querySelectorAll('.snmp-privacy').forEach(item => item.classList.toggle('is-hidden', security.value !== '@((int)SnmpSecurityLevel.AuthPriv)'));
+            };
+            method.addEventListener('change', update);
+            version.addEventListener('change', update);
+            security.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}

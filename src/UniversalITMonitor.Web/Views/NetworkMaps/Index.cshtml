@@ -1,0 +1,55 @@
+@model NetworkMapsIndexViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Topology";
+    var canManage = User.IsInRole(SystemRoles.Administrator) || User.IsInRole(SystemRoles.Operator);
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">TOPOLOGY</div>
+        <h1>Topology</h1>
+        <p class="page-subtitle">Build saved network diagrams from devices in your inventory.</p>
+    </div>
+    @if (canManage)
+    {
+        <a class="app-primary-button btn" asp-action="Editor">Create map <span aria-hidden="true">+</span></a>
+    }
+</div>
+
+<section class="panel-card">
+    <div class="panel-heading">
+        <div>
+            <h2>Saved maps</h2>
+            <p>@Model.Maps.Count map(s) · icons link to existing device records</p>
+        </div>
+    </div>
+    @if (Model.Maps.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No network maps yet</h3>
+            <p>Create a map and place devices from your inventory on the canvas.</p>
+            @if (canManage) { <a class="app-primary-button btn" asp-action="Editor">Create first map</a> }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="device-table" aria-label="Saved network maps">
+                <thead><tr><th>Map</th><th>Devices</th><th>Connections</th><th>Updated</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var map in Model.Maps)
+                {
+                    <tr>
+                        <td><a class="device-name-link" asp-action="Editor" asp-route-id="@map.Id">@map.Name</a></td>
+                        <td>@map.Nodes.Count</td>
+                        <td>@map.Connections.Count</td>
+                        <td>@map.UpdatedUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")</td>
+                        <td><a class="app-secondary-button" asp-action="Editor" asp-route-id="@map.Id">Open map</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

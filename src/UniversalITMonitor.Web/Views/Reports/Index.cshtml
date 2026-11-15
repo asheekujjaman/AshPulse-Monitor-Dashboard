@@ -1,0 +1,91 @@
+@model ReportsViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "Reports";
+    var report = Model.Report;
+    var query = report.Query;
+}
+
+<div class="page-heading report-heading">
+    <div><div class="eyebrow">OPERATIONS REPORTING</div><h1>Reports</h1><p class="page-subtitle">Status history and response samples use persisted monitoring data. Missing history is called out in each report.</p></div>
+    <button class="app-secondary-button" type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+@if (report.ValidationError is string validationError) { <div class="notice notice-error" role="alert">@validationError</div> }
+
+<section class="panel-card report-filter-panel">
+    <div class="panel-heading"><div><h2>Report filters</h2><p>Date boundaries use UTC. Status filters select devices by their current status.</p></div></div>
+    <form asp-action="Index" method="get" class="report-filter-grid">
+        <div class="form-field"><label for="startDate">Start date (UTC)</label><input id="startDate" name="startDate" type="date" class="form-control" value="@query.StartDate.ToString("yyyy-MM-dd")" /></div>
+        <div class="form-field"><label for="endDate">End date (UTC)</label><input id="endDate" name="endDate" type="date" class="form-control" value="@query.EndDate.ToString("yyyy-MM-dd")" /></div>
+        <div class="form-field"><label for="deviceId">Device</label><select id="deviceId" name="deviceId" class="form-select"><option value="">All devices</option>@foreach (var device in report.DeviceChoices) { <option value="@device.Id" selected="@(query.DeviceId == device.Id)">@device.Name · @device.IpAddress</option> }</select></div>
+        <div class="form-field"><label for="locationId">Location</label><select id="locationId" name="locationId" class="form-select"><option value="">All locations</option>@foreach (var location in report.LocationChoices) { <option value="@location.Id" selected="@(query.LocationId == location.Id)">@location.Name</option> }</select></div>
+        <div class="form-field"><label for="groupId">Group</label><select id="groupId" name="groupId" class="form-select"><option value="">All groups</option>@foreach (var group in report.GroupChoices) { <option value="@group.Id" selected="@(query.GroupId == group.Id)">@group.Name</option> }</select></div>
+        <div class="form-field"><label for="status">Current device status</label><select id="status" name="status" class="form-select"><option value="">All statuses</option>@foreach (var status in Enum.GetValues<DeviceStatus>()) { <option value="@status" selected="@(query.Status == status)">@status</option> }</select></div>
+        <div class="form-field"><label for="ipAssignmentStatus">IPAM assignment status</label><select id="ipAssignmentStatus" name="ipAssignmentStatus" class="form-select"><option value="">All assignment statuses</option>@foreach (var status in Enum.GetValues<IpAssignmentStatus>()) { <option value="@status" selected="@(query.IpAssignmentStatus == status)">@status</option> }</select></div>
+        <div class="form-actions"><button class="app-primary-button btn" type="submit">Run report</button></div>
+    </form>
+</section>
+
+@if (report.ValidationError is null)
+{
+    <div class="report-toolbar">
+        <span>Reporting interval: <strong>@report.StartUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")</strong> to <strong>@report.EndUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")</strong></span>
+        <div class="heading-actions">
+            <a class="app-secondary-button" asp-action="Export" asp-route-kind="Availability" asp-route-startDate="@query.StartDate" asp-route-endDate="@query.EndDate" asp-route-deviceId="@query.DeviceId" asp-route-locationId="@query.LocationId" asp-route-groupId="@query.GroupId" asp-route-status="@query.Status" asp-route-ipAssignmentStatus="@query.IpAssignmentStatus">Export availability CSV</a>
+            <a class="app-secondary-button" asp-action="Export" asp-route-kind="Ipam" asp-route-startDate="@query.StartDate" asp-route-endDate="@query.EndDate" asp-route-deviceId="@query.DeviceId" asp-route-locationId="@query.LocationId" asp-route-groupId="@query.GroupId" asp-route-status="@query.Status" asp-route-ipAssignmentStatus="@query.IpAssignmentStatus">Export IPAM CSV</a>
+        </div>
+    </div>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Device availability and response</h2><p>Availability excludes Unknown duration. Coverage shows the portion classified UP or DOWN.</p></div><span class="record-count">@report.Devices.Count device(s)</span></div>
+        <div class="table-responsive">
+            <table class="device-table report-table" aria-label="Device availability report">
+                <thead><tr><th>Device / IP</th><th>Location / group</th><th>Up</th><th>Down</th><th>Unknown</th><th>Availability</th><th>Coverage</th><th>Response (min / avg / max)</th><th>Data availability</th></tr></thead>
+                <tbody>
+                @foreach (var row in report.Devices)
+                {
+                    <tr>
+                        <td><strong>@row.Device.Name</strong><br /><span class="muted-text copyable-ip" data-copy-ip="@row.Device.IpAddress">@row.Device.IpAddress</span></td>
+                        <td>@(row.Device.Location ?? "Unassigned")<br /><span class="muted-text">@(row.Device.Group ?? "No group")</span></td>
+                        <td>@row.Up.Days d @row.Up.Hours h @row.Up.Minutes m</td>
+                        <td>@row.Down.Days d @row.Down.Hours h @row.Down.Minutes m</td>
+                        <td>@row.Unknown.Days d @row.Unknown.Hours h @row.Unknown.Minutes m</td>
+                        <td>@(row.AvailabilityPercent is null ? "Unavailable" : $"{row.AvailabilityPercent:F2}%")</td>
+                        <td>@row.CoveragePercent.ToString("F1")%</td>
+                        <td>@(row.MinimumResponseMilliseconds?.ToString() ?? "—") / @(row.AverageResponseMilliseconds?.ToString() ?? "—") / @(row.MaximumResponseMilliseconds?.ToString() ?? "—") ms<br /><span class="muted-text">@row.ResponseSampleCount check(s)</span></td>
+                        <td><span>@row.StatusHistoryNote</span><br /><span class="muted-text">@row.ResponseHistoryNote</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="report-two-column">
+        <div class="panel-card"><div class="panel-heading"><div><h2>Location summary</h2><p>Current status snapshot for devices below each location.</p></div></div>
+            <div class="table-responsive"><table class="device-table"><thead><tr><th>Location</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead><tbody>@foreach (var row in report.Locations) { <tr><td>@row.Path</td><td>@row.DeviceCount</td><td>@row.UpCount</td><td>@row.DownCount</td><td>@row.UnknownCount</td></tr> }</tbody></table></div>
+        </div>
+        <div class="panel-card"><div class="panel-heading"><div><h2>Group summary</h2><p>Current status snapshot for devices within nested groups.</p></div></div>
+            <div class="table-responsive"><table class="device-table"><thead><tr><th>Group</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead><tbody>@foreach (var row in report.Groups) { <tr><td>@row.Path</td><td>@row.DeviceCount</td><td>@row.UpCount</td><td>@row.DownCount</td><td>@row.UnknownCount</td></tr> }</tbody></table></div>
+        </div>
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Status history</h2><p>Persisted status transitions inside the selected period.</p></div><span class="record-count">@report.Transitions.Count transition(s)</span></div>
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>Time (UTC)</th><th>Device / IP</th><th>Location / group</th><th>Change</th><th>Response</th><th>Details</th></tr></thead><tbody>@foreach (var row in report.Transitions) { <tr><td>@row.Transition.OccurredUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")</td><td>@row.DeviceName<br /><span class="muted-text copyable-ip" data-copy-ip="@row.IpAddress">@row.IpAddress</span></td><td>@(row.Location ?? "Unassigned")<br /><span class="muted-text">@(row.Group ?? "No group")</span></td><td>@row.Transition.PreviousStatus → @row.Transition.Status</td><td>@(row.Transition.ResponseTimeMilliseconds?.ToString() ?? "—") ms</td><td>@(row.Transition.Error ?? "—")</td></tr> }</tbody></table></div>
+        @if (report.Transitions.Count == 0) { <div class="empty-inline">No status transitions were recorded in this period.</div> }
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>Response-time checks</h2><p>Actual persisted probe samples; unsuccessful probes have no response time.</p></div><span class="record-count">@report.ResponseSamples.Count sample(s)</span></div>
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>Time (UTC)</th><th>Device / IP</th><th>Location</th><th>Status</th><th>Response</th></tr></thead><tbody>@foreach (var row in report.ResponseSamples) { <tr><td>@row.Sample.CheckedUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")</td><td>@row.DeviceName<br /><span class="muted-text copyable-ip" data-copy-ip="@row.IpAddress">@row.IpAddress</span></td><td>@(row.Location ?? "Unassigned")</td><td>@row.Sample.Status</td><td>@(row.Sample.ResponseTimeMilliseconds?.ToString() ?? "—") ms</td></tr> }</tbody></table></div>
+        @if (report.ResponseSamples.Count == 0) { <div class="empty-inline">No persisted check samples match these filters. Older response-time data is unavailable.</div> }
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading"><div><h2>IPAM inventory</h2><p>Current IP inventory snapshot. Assignment status is explicit and is not inferred from monitoring.</p></div><span class="record-count">@report.IpamRecords.Count record(s)</span></div>
+        <div class="table-responsive"><table class="device-table"><thead><tr><th>IP / device</th><th>VLAN</th><th>Location / building / group</th><th>Switch / port</th><th>Assigned to</th><th>Status</th></tr></thead><tbody>@foreach (var row in report.IpamRecords) { <tr><td><span class="copyable-ip" data-copy-ip="@row.IpAddress">@row.IpAddress</span><br /><span class="muted-text">@(row.DeviceName ?? "Unassigned")</span></td><td>@(row.VlanId?.ToString() ?? "—") @(row.VlanName)</td><td>@(row.Location ?? "—")<br /><span class="muted-text">@(row.Building ?? "") · @(row.Group ?? "")</span></td><td>@(row.SwitchName ?? "—")<br /><span class="muted-text">@(row.SwitchPort ?? "")</span></td><td>@(row.AssignedTo ?? "—")</td><td>@row.AssignmentStatus</td></tr> }</tbody></table></div>
+        @if (report.IpamRecords.Count == 0) { <div class="empty-inline">No IPAM records match these filters.</div> }
+    </section>
+}
