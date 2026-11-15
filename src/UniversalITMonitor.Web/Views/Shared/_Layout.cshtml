@@ -65,6 +65,10 @@
                         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"></rect><rect x="4" y="14" width="16" height="6" rx="1.5"></rect><path d="M8 7h.01M8 17h.01M12 7h5M12 17h5"></path></svg>
                         <span>Network devices</span>
                     </a>
+                    <a class="sidebar-link @(currentController == "Ping" ? "active" : "")" asp-controller="Ping" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h4l2.1-5.5L13 18l2.2-6H21.5"></path><path d="M12 2.5a9.5 9.5 0 1 0 9.5 9.5"></path></svg>
+                        <span>Ping</span>
+                    </a>
                     <a class="sidebar-link @(currentController == "Devices" && isServerFilter ? "active" : "")" asp-controller="Devices" asp-action="Index" asp-route-type="Server">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="7" rx="1.5"></rect><rect x="4" y="13.5" width="16" height="7" rx="1.5"></rect><path d="M7 7h.01M7 17h.01M11 7h6m-6 10h6"></path></svg>
                         <span>Servers</span>
@@ -209,6 +213,10 @@
 
             <footer class="app-footer">
                 <span>AshPulse Infrastructure Monitor</span>
+                <a class="footer-support-link" href="mailto:asheekujjaman@gamil.com" aria-label="Email support at asheekujjaman@gamil.com">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></svg>
+                    <span>Support: asheekujjaman@gamil.com</span>
+                </a>
                 <span>Monitor Everything. Miss Nothing.</span>
             </footer>
         </div>

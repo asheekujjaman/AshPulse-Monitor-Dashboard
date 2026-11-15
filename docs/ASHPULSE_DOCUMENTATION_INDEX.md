@@ -9,6 +9,7 @@ This documentation set describes the application implemented in this repository.
 | All signed-in users | [User guide](./ASHPULSE_USER_GUIDE.md) | Navigate the dashboard, manage permitted inventory, read statuses, work with maps/IPAM/reports, and troubleshoot common issues. |
 | System administrators | [Administrator guide](./ASHPULSE_ADMINISTRATOR_GUIDE.md) | Configure accounts, monitoring, SNMP, alerts, themes, backups, access, and operations. |
 | Deployment engineers | [Implementation runbook](./ASHPULSE_IMPLEMENTATION_RUNBOOK.md) | Plan, publish, configure, validate, hand over, upgrade, and roll back an IIS deployment. |
+| Client deployment | [Easy Implementation](../Easy%20Implementation.md) | Build the `site` folder and copy its contents into the IIS website folder with the required one-time IIS setup. |
 | Trainers and trainees | [Training guide](./ASHPULSE_TRAINING_GUIDE.md) | Deliver a guided class with role-based labs and a completion checklist. |
 
 ## Engineering and operational references
@@ -24,7 +25,7 @@ This documentation set describes the application implemented in this repository.
 
 ## Product scope at a glance
 
-AshPulse is an on-premises ASP.NET Core MVC application. The current implementation stores data in local JSON/JSONL files; it does not use a database server. It supports local accounts, device inventory, ICMP monitoring, optional read-only SNMP collection, locations/groups, topology maps, IPAM, reports, Telegram/SMTP notification configuration, and administrator-managed backups and restores.
+AshPulse is an on-premises ASP.NET Core MVC application. The current implementation stores data in local JSON/JSONL files; it does not use a database server. It supports local accounts, device inventory, scheduled ICMP monitoring, a multi-target live Ping page, optional read-only SNMP collection, locations/groups, topology maps, IPAM subnet discovery with Add/Update actions, reports, Telegram/SMTP notification configuration, and administrator-managed backups and restores.
 
 The application does not include Active Directory authentication, built-in MFA, Excel import/export, server-side PDF generation, DHCP/IP configuration, or multi-node shared storage. Live SNMP and external Telegram/SMTP delivery must be verified with the target devices and provider credentials before relying on them.
 

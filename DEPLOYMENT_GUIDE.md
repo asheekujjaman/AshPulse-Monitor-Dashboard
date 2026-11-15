@@ -4,7 +4,9 @@ This guide is a deployment procedure for the existing ASP.NET Core MVC applicati
 
 ## Runtime and IIS prerequisites
 
-The Web project targets `net10.0`. For the framework-dependent IIS deployment below, install the **x64 .NET 10 ASP.NET Core Hosting Bundle** on the IIS server. It supplies the .NET 10 runtime, ASP.NET Core runtime, and ASP.NET Core Module (ANCM) for IIS. Install IIS first, then install or repair the Hosting Bundle, and restart IIS services (or the server) if the installer requests it. The latest servicing bundle must be installed at deployment time; the .NET 10 download page listed ASP.NET Core Runtime 10.0.14 on 2026-11-01. Confirm the currently supported .NET 10 servicing version before release rather than pinning an old patch. The server does not need the SDK for this framework-dependent deployment.
+The Web project targets `net10.0`. The client-ready `site` package is self-contained for `win-x64`, so the server does not need a separate .NET runtime install. IIS still requires the ASP.NET Core Module (ANCM), supplied by the **x64 .NET 10 ASP.NET Core Hosting Bundle**. Install IIS first, then install or repair the Hosting Bundle, and restart IIS services (or the server) if the installer requests it. Confirm the currently supported .NET 10 servicing version before release. The server does not need the SDK.
+
+For the short copy-based procedure, see [Easy Implementation](./Easy%20Implementation.md). This guide retains the more controlled versioned-release deployment option below.
 
 - [Microsoft: Host ASP.NET Core on Windows with IIS](https://learn.microsoft.com/aspnet/core/host-and-deploy/iis/?view=aspnetcore-10.0)
 - [Microsoft: Publish an ASP.NET Core app to IIS](https://learn.microsoft.com/aspnet/core/tutorials/publish-to-iis?view=aspnetcore-10.0)
@@ -30,7 +32,8 @@ $release = Get-Date -Format 'yyyyMMdd-HHmmss'
 $publishPath = "C:\UIM-Staging\UniversalITMonitor\$release"
 New-Item -ItemType Directory -Force -Path $publishPath | Out-Null
 dotnet publish .\src\UniversalITMonitor.Web\UniversalITMonitor.Web.csproj `
-  -c Release -f net10.0 -r win-x64 --self-contained false -o $publishPath
+  -c Release -r win-x64 --self-contained true -o $publishPath `
+  -p:DebugType=None -p:DebugSymbols=false
 ```
 
 Review the publish output, generated `web.config`, and release file hash/manifest before copying it to the server. `dotnet publish` generates the ANCM configuration; preserve the generated `web.config`. Do not set `stdoutLogEnabled="true"` as routine logging: the application has its own redacted, rotated log files, while ANCM stdout logs require separate ACL and cleanup controls. With the in-site default data path, the application identity needs Modify on the publish folder for its data, lock, and restore staging files. Use an external stable data path to keep application binaries read-only. Do not publish developer secrets or copy developer runtime data into Production.

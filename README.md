@@ -57,6 +57,11 @@ Administrators and Operators can create, edit, import, delete, and enable or pau
 - Administrators can create/edit/delete records and subnets. CSV import supports column mapping, preview, validation, duplicate reporting, and a commit step that skips duplicates without overwriting existing entries. CSV export and a downloadable template are available.
 - Excel import/export is not included; this version uses CSV and JSON formats without a spreadsheet dependency.
 
+## Live Ping
+
+- The **Ping** page runs continuous ICMP probes for multiple IPv4/IPv6 addresses or DNS names at once. Each target can be added independently and removed from the live view.
+- Results show the resolved IP, reachability, latency, raw TTL, reply size, packet loss, and last check. Failed replies are highlighted in red. This is an on-demand view; it does not add a device to inventory or replace scheduled device monitoring.
+
 ## Notifications
 
 - Administrators configure Telegram Bot API and SMTP email delivery, enable either channel, and send test messages from **Notifications**.
@@ -122,10 +127,10 @@ dotnet build UniversalITMonitor.sln
 
 ## IIS deployment
 
-For the complete Windows Server/IIS procedure, configuration example, permissions, upgrade sequence, operator checks, and recovery steps, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [IIS_SETUP_CHECKLIST.md](./IIS_SETUP_CHECKLIST.md), [PRODUCTION_TEST_CHECKLIST.md](./PRODUCTION_TEST_CHECKLIST.md), and [DISASTER_RECOVERY_GUIDE.md](./DISASTER_RECOVERY_GUIDE.md). These documents describe checks to perform; they do not claim target-server deployment, live-provider, responsive-device, or 200+ device load tests have passed.
+For the simplest copy-based IIS deployment, follow [Easy Implementation.md](./Easy%20Implementation.md). The full Windows Server/IIS procedure, configuration example, permissions, upgrade sequence, operator checks, and recovery steps are in [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [IIS_SETUP_CHECKLIST.md](./IIS_SETUP_CHECKLIST.md), [PRODUCTION_TEST_CHECKLIST.md](./PRODUCTION_TEST_CHECKLIST.md), and [DISASTER_RECOVERY_GUIDE.md](./DISASTER_RECOVERY_GUIDE.md). These documents describe checks to perform; they do not claim target-server deployment, live-provider, responsive-device, or 200+ device load tests have passed.
 
 1. Install the .NET 10 ASP.NET Core Hosting Bundle.
-2. Publish the Web project as a framework-dependent x64 .NET 10 deployment with `dotnet publish src/UniversalITMonitor.Web/UniversalITMonitor.Web.csproj -c Release -f net10.0 -r win-x64 --self-contained false -o <publish-folder>`.
+2. Build the current client package from the repository root with `dotnet publish src/UniversalITMonitor.Web/UniversalITMonitor.Web.csproj -c Release -r win-x64 --self-contained true -o site -p:DebugType=None -p:DebugSymbols=false`. Copy the contents of `site` into the IIS site's physical folder. The app is self-contained, but IIS still needs ASP.NET Core Module (ANCM), installed by the .NET 10 Hosting Bundle.
 3. Create a dedicated IIS application pool using **No Managed Code**, 64-bit mode, and **Load User Profile** enabled. Use a dedicated application-pool identity.
 4. Grant that identity Modify access to the published site folder when using the default data path `<publish-folder>\App_Data`; the default backup path is `<publish-folder>\Backups`.
 5. No storage path setting is required for a single stable IIS site folder. Optionally set `Storage__DataDirectory` to an absolute path outside the published site when using versioned release folders or moving data independently. This lets the published files remain read-only.

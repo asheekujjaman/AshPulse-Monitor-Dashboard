@@ -42,9 +42,11 @@ public enum DeviceStatus
 public enum SnmpVersion
 {
     [Display(Name = "SNMP v2c")]
-    V2c,
+    V2c = 0,
     [Display(Name = "SNMP v3")]
-    V3
+    V3 = 1,
+    [Display(Name = "SNMP v1 (legacy)")]
+    V1 = 2
 }
 
 public enum SnmpSecurityLevel

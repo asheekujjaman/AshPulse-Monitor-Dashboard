@@ -11,6 +11,7 @@ namespace UniversalITMonitor.Monitoring;
 public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
 {
     private const string SystemDescriptionOid = "1.3.6.1.2.1.1.1.0";
+    private const string SystemObjectIdOid = "1.3.6.1.2.1.1.2.0";
     private const string SystemUptimeOid = "1.3.6.1.2.1.1.3.0";
     private const string SystemNameOid = "1.3.6.1.2.1.1.5.0";
     private const string CpuLoadTableOid = "1.3.6.1.2.1.25.3.3.1.2";
@@ -24,11 +25,21 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
     private const string IfOutOctetsTableOid = "1.3.6.1.2.1.2.2.1.16";
     private const string IfSpeedTableOid = "1.3.6.1.2.1.2.2.1.5";
     private const string IfAliasTableOid = "1.3.6.1.2.1.31.1.1.1.18";
+    private const string IfNameColumnOid = IfXTableOid + ".1";
+    private const string IfHCInOctetsColumnOid = IfXTableOid + ".6";
+    private const string IfHCOutOctetsColumnOid = IfXTableOid + ".10";
+    private const string IfHighSpeedColumnOid = IfXTableOid + ".15";
     private const string BridgePortIfIndexTableOid = "1.3.6.1.2.1.17.1.4.1.2";
     private const string Dot1qPvidTableOid = "1.3.6.1.2.1.17.7.1.4.5.1.1";
     private const string CiscoVmVlanTableOid = "1.3.6.1.4.1.9.9.68.1.2.2.1.2";
     private const string RealMemoryTypeOid = "1.3.6.1.2.1.25.2.1.2";
-    private const int RequestTimeoutMilliseconds = 2500;
+    private const int RequestTimeoutMilliseconds = 5000;
+
+    static SnmpMetricsCollector()
+    {
+        // Some network agents reject negative request IDs and return malformed BER data.
+        Messenger.UseFullRange = false;
+    }
 
     public async Task<SnmpMetrics> CollectAsync(NetworkDevice device, CancellationToken cancellationToken = default)
     {
@@ -52,10 +63,11 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
             var session = await CreateSessionAsync(configuration, endpoint, cancellationToken);
             var system = await GetAsync(
                 session,
-                [SystemDescriptionOid, SystemNameOid, SystemUptimeOid],
+                [SystemDescriptionOid, SystemObjectIdOid, SystemNameOid, SystemUptimeOid],
                 cancellationToken);
 
             metrics.SystemDescription = GetValue(system, SystemDescriptionOid);
+            var systemObjectId = GetValue(system, SystemObjectIdOid);
             metrics.SystemName = GetValue(system, SystemNameOid);
             metrics.SystemUptimeHundredths = ParseUInt(GetValue(system, SystemUptimeOid));
 
@@ -73,9 +85,20 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
             var storageValues = await TryWalkAsync(session, StorageTableOid, cancellationToken, walkErrors);
             metrics.MemoryUtilizationPercent = GetMemoryUtilization(storageValues);
 
-            var interfaceValues = await TryWalkAsync(session, IfXTableOid, cancellationToken, walkErrors);
-            var legacyInterfaceValues = await TryWalkAsync(session, IfTableOid, cancellationToken, walkErrors);
-            var isCisco = metrics.SystemDescription?.Contains("Cisco", StringComparison.OrdinalIgnoreCase) == true;
+            var interfaceValues = new List<Variable>();
+            foreach (var columnOid in new[] { IfNameColumnOid, IfHCInOctetsColumnOid, IfHCOutOctetsColumnOid, IfHighSpeedColumnOid, IfAliasTableOid })
+            {
+                interfaceValues.AddRange(await TryWalkAsync(session, columnOid, cancellationToken, walkErrors));
+            }
+            var legacyInterfaceValues = new List<Variable>();
+            foreach (var columnOid in new[] { IfDescrTableOid, IfAdminStatusTableOid, IfOperStatusTableOid, IfInOctetsTableOid, IfOutOctetsTableOid, IfSpeedTableOid })
+            {
+                legacyInterfaceValues.AddRange(await TryWalkAsync(session, columnOid, cancellationToken, walkErrors));
+            }
+            // Some Cisco platforms return a generic or model-only sysDescr. sysObjectID is
+            // the stable vendor identifier (Cisco enterprise number 9), so use both values.
+            var isCisco = metrics.SystemDescription?.Contains("Cisco", StringComparison.OrdinalIgnoreCase) == true ||
+                systemObjectId?.StartsWith("1.3.6.1.4.1.9.", StringComparison.Ordinal) == true;
             var ciscoVlanValues = isCisco
                 ? await TryWalkAsync(session, CiscoVmVlanTableOid, cancellationToken, walkErrors)
                 : Array.Empty<Variable>();
@@ -85,7 +108,8 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
                 bridgePortValues, pvidValues, device.LatestSnmpMetrics, collectedUtc);
             if (walkErrors.Count > 0 && metrics.Interfaces.Count == 0)
             {
-                metrics.CollectionError = "SNMP responded, but interface tables were unavailable. Check the SNMP view/permissions and whether IF-MIB is enabled on the device.";
+                var details = string.Join(" | ", walkErrors.Take(4));
+                metrics.CollectionError = $"SNMP responded, but interface tables were unavailable. Check the SNMP view/permissions and whether IF-MIB is enabled on the device. {details}";
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -113,14 +137,15 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
         IPEndPoint endpoint,
         CancellationToken cancellationToken)
     {
-        if (configuration.Version == SnmpVersion.V2c)
+        if (configuration.Version is SnmpVersion.V1 or SnmpVersion.V2c)
         {
             if (string.IsNullOrEmpty(configuration.ProtectedCommunity))
             {
-                throw new InvalidOperationException("The SNMP v2c community string is missing.");
+                throw new InvalidOperationException($"The SNMP {configuration.Version} community string is missing.");
             }
 
-            return new SnmpSession(endpoint, new OctetString(configuration.ProtectedCommunity), null, null);
+            var version = configuration.Version == SnmpVersion.V1 ? VersionCode.V1 : VersionCode.V2;
+            return new SnmpSession(endpoint, new OctetString(configuration.ProtectedCommunity), null, null, Version: version);
         }
 
         if (string.IsNullOrWhiteSpace(configuration.UserName))
@@ -207,7 +232,7 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
         if (session.PrivacyProvider is null)
         {
             return (IReadOnlyList<Variable>)await Messenger.GetAsync(
-                VersionCode.V2,
+                session.Version,
                 session.Endpoint,
                 session.Community,
                 variables,
@@ -243,22 +268,36 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
         using var timeout = CreateTimeoutToken(cancellationToken);
         if (session.PrivacyProvider is null)
         {
-            await Messenger.BulkWalkAsync(
-                VersionCode.V2,
-                session.Endpoint,
-                session.Community,
-                OctetString.Empty,
-                new ObjectIdentifier(rootOid),
-                variables,
-                10,
-                WalkMode.WithinSubtree,
-                DefaultPrivacyProvider.DefaultPair,
-                new GetRequestMessage(
-                    Messenger.NextRequestId,
-                    VersionCode.V2,
+            if (session.Version == VersionCode.V1)
+            {
+                await Messenger.WalkAsync(
+                    VersionCode.V1,
+                    session.Endpoint,
                     session.Community,
-                    [new Variable(new ObjectIdentifier(rootOid))]),
-                timeout.Token);
+                    new ObjectIdentifier(rootOid),
+                    variables,
+                    WalkMode.WithinSubtree,
+                    timeout.Token);
+            }
+            else
+            {
+                await Messenger.BulkWalkAsync(
+                    VersionCode.V2,
+                    session.Endpoint,
+                    session.Community,
+                    OctetString.Empty,
+                    new ObjectIdentifier(rootOid),
+                    variables,
+                    20,
+                    WalkMode.WithinSubtree,
+                    DefaultPrivacyProvider.DefaultPair,
+                    new GetRequestMessage(
+                        Messenger.NextRequestId,
+                        VersionCode.V2,
+                        session.Community,
+                        [new Variable(new ObjectIdentifier(rootOid))]),
+                    timeout.Token);
+            }
         }
         else
         {
@@ -292,6 +331,11 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException)
+        {
+            errors.Add($"{rootOid}: timed out after {RequestTimeoutMilliseconds} ms");
+            return [];
         }
         catch (Exception exception)
         {
@@ -492,5 +536,6 @@ public sealed class SnmpMetricsCollector : ISnmpMetricsCollector
         OctetString Community,
         IPrivacyProvider? PrivacyProvider,
         ISnmpMessage? Report,
-        string? UserName = null);
+        string? UserName = null,
+        VersionCode Version = VersionCode.V3);
 }

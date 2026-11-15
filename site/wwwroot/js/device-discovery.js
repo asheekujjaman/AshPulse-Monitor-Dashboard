@@ -205,11 +205,11 @@
 
     const updateSnmpVisibility = () => {
         const usesSnmp = methodInput.value === '1';
-        const usesV2 = snmpVersion.value === '0';
+        const usesCommunity = snmpVersion.value !== '1';
         const security = snmpSecurity.value;
         snmpFields.hidden = !usesSnmp;
-        document.querySelectorAll('.discovery-snmp-v2').forEach(field => { field.hidden = !usesSnmp || !usesV2; });
-        document.querySelectorAll('.discovery-snmp-v3').forEach(field => { field.hidden = !usesSnmp || usesV2; });
+        document.querySelectorAll('.discovery-snmp-v2').forEach(field => { field.hidden = !usesSnmp || !usesCommunity; });
+        document.querySelectorAll('.discovery-snmp-v3').forEach(field => { field.hidden = !usesSnmp || usesCommunity; });
         document.querySelectorAll('.discovery-snmp-auth').forEach(field => { field.hidden = !usesSnmp || usesV2 || security === '0'; });
         document.querySelectorAll('.discovery-snmp-privacy').forEach(field => { field.hidden = !usesSnmp || usesV2 || security !== '2'; });
     };

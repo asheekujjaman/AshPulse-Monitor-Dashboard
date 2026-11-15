@@ -37,14 +37,14 @@ dotnet test .\UniversalITMonitor.sln -c Release --no-build --no-restore --logger
 - [ ] **Staging/manual** — verify HTTPS certificate chain, hostname, redirects, HSTS behavior, and no accidental HTTP-only login path.
 - [ ] **Staging/manual** — confirm `ASPNETCORE_ENVIRONMENT=Production`, exact `AllowedHosts`, data path (`App_Data` by default or configured external path), backup path, log/key locations, and effective NTFS permissions. Confirm no writes under `wwwroot` and that the app pool can write to the publish folder when using the default.
 - [ ] **Staging/manual** — sign in as Admin and Read-only test users. Admin-only user, notification, appearance, integrity, and backup/restore routes must reject Read-only requests at the server. Verify logout, antiforgery, account lockout, and that protected credential values never appear in pages, logs, browser downloads, or CSV exports.
-- [ ] **Staging/manual** — exercise Dashboard, Devices, Locations, Groups, Network Maps, IPAM, Reports, Notifications, User Administration, Appearance, and Backup/Restore. Check empty states, errors, forms, filters, and keyboard focus.
+- [ ] **Staging/manual** — exercise Dashboard, Devices, Live Ping, Locations, Groups, Network Maps, IPAM, Reports, Notifications, User Administration, Appearance, and Backup/Restore. Check empty states, errors, forms, filters, and keyboard focus.
 - [ ] **Staging/manual** — set each of Ocean Blue, Midnight Purple, and Emerald Green, refresh, sign out/in, and confirm the default persists without changing custom branding. Confirm UP green, DOWN red, WARNING yellow, UNKNOWN gray in each theme.
 - [ ] **Staging/manual** — test status details and global navigation with both roles. Confirm Read-only has no write controls and receives 403/denial on direct Admin endpoint requests.
 - [ ] **Staging/manual** — inspect the browser Network panel: favicon SVG, PNG sizes, ICO, Apple touch icon, manifest, styles, and scripts must load with successful responses and no 404s. Repeat using the production IIS URL/virtual application path.
 
 ## Responsive UI verification
 
-Use current Edge or Chrome DevTools Responsive Design Mode. Set the **CSS viewport** to each size; test both roles, all themes, and at minimum Dashboard, Devices, Locations/Groups, Network Maps, IPAM, Reports, and the Admin pages.
+Use current Edge or Chrome DevTools Responsive Design Mode. Set the **CSS viewport** to each size; test both roles, all themes, and at minimum Dashboard, Devices, Live Ping, Locations/Groups, Network Maps, IPAM, Reports, and the Admin pages.
 
 | Viewport | Pages and roles tested | No page-wide horizontal overflow | Tables scroll within their own container | Result/evidence |
 | --- | --- | --- | --- | --- |
@@ -58,6 +58,8 @@ Use current Edge or Chrome DevTools Responsive Design Mode. Set the **CSS viewpo
 
 ## Monitoring and notifications
 
+- [ ] **Staging/manual** — on **Ping**, add two approved IP/DNS targets; confirm repeat probes, resolved IP, status, latency, raw TTL, reply bytes, packet loss, red failure styling, and target removal. Verify the page does not create inventory records.
+- [ ] **Staging/manual** — on IPAM subnet discovery, scan an approved registered subnet; verify only ICMP responders appear, add one new IP with details, add multiple selected IPs, and use **Update** on an already recorded IP. Confirm no duplicate record is created and existing details can be saved.
 - [ ] **Staging/manual** — add a controlled ICMP responder and a controlled non-responder in an approved test VLAN. Verify UP/DOWN, response time, last-check time, current state duration, status-history rows, and recovery after restoring reachability.
 - [ ] **Staging/manual** — restart/recycle after a status transition is recorded. Verify current status and pending-transition recovery; verify exactly one history event per transition ID. Notification delivery is at-least-once around the provider-accepted/local-write crash window, so inspect and document possible duplicates.
 - [ ] **Staging/manual** — trigger one DOWN transition and one recovery transition with a monitored test device. Verify alert contents contain device name, IP, status, location, timestamp, and safe details. Leave the device continuously down across several polls and verify there are no repeated transition alerts.
@@ -69,6 +71,8 @@ Use current Edge or Chrome DevTools Responsive Design Mode. Set the **CSS viewpo
 
 - [ ] **Lab/manual** — use an approved SNMP agent with a read-only SNMPv3 account where possible. If validating v2c, isolate it to a trusted management network and use a non-default community. Do not use command-line flags, shell history, packet captures, or ticket text that expose credentials.
 - [ ] Add the lab device through the UI, set credentials, wait for configured polling, and verify only supported system/interface fields appear. Confirm unsupported CPU/memory OIDs remain unreported, and an SNMP failure does not alter ICMP status.
+- [ ] On a controlled Cisco switch, verify discovered interfaces, port status, traffic counters/rates, and assigned VLAN when supported membership/PVID tables are exposed. Verify hide/show interface preference. Record model/firmware and available MIB tables.
+- [ ] On approved MikroTik models/versions, repeat supported interface/status/traffic checks and document agent-specific behavior. Do not infer compatibility with every RouterOS version from one successful device.
 - [ ] Verify UDP/161 routing/firewall and agent ACLs from the app server. Record agent make/version, protocol/security level, supported OIDs, result, and safe error only.
 - [ ] **Production-specific** — repeat only against approved target agents after a change approval. This repository does not claim universal/vendor-specific SNMP interoperability.
 

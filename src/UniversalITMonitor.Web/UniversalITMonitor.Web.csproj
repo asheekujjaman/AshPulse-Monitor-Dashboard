@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Content Update="App_Data\**" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>

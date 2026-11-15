@@ -341,12 +341,18 @@ body.is-anonymous .app-sidebar {
 }
 
 .app-footer {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     padding: 17px 38px 21px;
     color: #98a3b3;
     font-size: 10px;
 }
+
+.app-footer > :last-child { justify-self: end; }
+.footer-support-link { display: inline-flex; align-items: center; justify-self: center; gap: 6px; color: inherit; text-decoration: none; white-space: nowrap; }
+.footer-support-link:hover, .footer-support-link:focus-visible { color: var(--brand-primary, #0078D4); text-decoration: underline; }
+.footer-support-link svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 .page-heading {
     display: flex;
@@ -2359,6 +2365,33 @@ body[data-theme] .app-clear-link:hover {
 .snmp-test-result.is-error { color: #a32222; background: #fff3f2; }
 .interface-visibility-toggle { padding: .32rem .52rem; font-size: .68rem; }
 .discovery-selection-count { color: #64778d; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.live-ping-page { display: grid; gap: .9rem; }
+.live-ping-controls, .live-ping-results { min-width: 0; }
+.live-ping-form { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(125px, 180px) auto; align-items: end; gap: .75rem; padding: 1rem; }
+.live-ping-form .app-primary-button { min-height: 39px; }
+.live-ping-indicator { display: inline-flex; align-items: center; gap: .45rem; min-height: 30px; padding: .35rem .65rem; border: 1px solid #dfe5ed; border-radius: 999px; color: #64778d; font-size: .7rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.live-ping-indicator > span:first-child { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #9ba8b7; }
+.live-ping-indicator > span:last-child { width: auto; height: auto; background: none; border-radius: 0; }
+.live-ping-indicator.is-idle { border-color: #d9e0e8; color: #58697d; background: #f4f6f9; }
+.live-ping-indicator.is-idle > span:first-child { background: #8391a2; }
+.live-ping-indicator.is-live, .live-ping-indicator.is-polling { border-color: #a7f3d0; color: #126141; background: #ecfdf5; }
+.live-ping-indicator.is-live > span:first-child, .live-ping-indicator.is-polling > span:first-child { background: #17a36b; }
+.live-ping-indicator.is-polling > span:first-child { animation: live-ping-pulse 1s ease-in-out infinite; }
+.live-ping-results .panel-heading { align-items: center; padding: 1rem 1rem .75rem; }
+.live-ping-results h2 { margin: 0; color: var(--brand-ink, #27384f); font-size: .95rem; }
+.live-ping-results .panel-heading p { margin: .25rem 0 0; color: var(--brand-muted, #8490a2); font-size: .73rem; }
+.live-ping-table { min-width: 980px; }
+.live-ping-table th, .live-ping-table td { white-space: nowrap; }
+.live-ping-table .live-ping-target-cell { font-family: ui-monospace, Consolas, monospace; font-weight: 700; }
+.live-ping-row-down { background: #fff3f2 !important; }
+.live-ping-row-down td { color: #a32222; }
+.live-ping-status-down, .live-ping-loss { color: #b42332 !important; font-weight: 750; }
+.live-ping-status-up { color: #126141 !important; font-weight: 750; }
+.live-ping-actions { display: flex; gap: .35rem; }
+.live-ping-actions .app-secondary-button { padding: .3rem .5rem; font-size: .68rem; }
+.live-ping-remove { color: #a32222 !important; }
+.live-ping-empty { padding: 1.5rem 1rem; color: #8190a1; font-size: .78rem; text-align: center; }
+@keyframes live-ping-pulse { 50% { opacity: .35; transform: scale(.75); } }
 .discovery-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .7rem 1rem; border-bottom: 1px solid #edf1f5; background: #fbfcfe; }
 .discovery-toolbar .app-primary-button { min-height: 35px; padding: .4rem .75rem; font-size: .75rem; }
 .discovery-toolbar .app-primary-button:disabled, .discovery-row-action:disabled { opacity: .55; cursor: not-allowed; }
@@ -2612,7 +2645,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .page-heading h1 { font-size: 24px; }
     .panel-heading { align-items: flex-start; padding: 15px; }
     .device-table { min-width: 620px; }
-    .app-footer { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .app-footer { grid-template-columns: 1fr; align-items: start; gap: 5px; }
+    .footer-support-link, .app-footer > :last-child { justify-self: start; }
 }
 
 /* Overview dashboard */
@@ -2724,6 +2758,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .dashboard-chart-summary span { text-align: left; }
     .dashboard-alert-row { grid-template-columns: 98px minmax(0, 1fr); }
     .dashboard-alert-row time { grid-column: 2; }
+    .live-ping-form { grid-template-columns: minmax(0, 1fr); }
+    .live-ping-form .app-primary-button { width: 100%; }
 }
 
 @media (max-width: 420px) {

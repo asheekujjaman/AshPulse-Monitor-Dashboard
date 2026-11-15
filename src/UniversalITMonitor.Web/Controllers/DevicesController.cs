@@ -266,44 +266,46 @@ public sealed class DevicesController(
         var existingByIp = allExisting.ToDictionary(d => d.IpAddress, StringComparer.OrdinalIgnoreCase);
 
         var timeout = Math.Clamp(request.TimeoutMilliseconds, 150, 3000);
+        var responsiveByIp = new ConcurrentDictionary<string, IcmpProbeResult>(StringComparer.OrdinalIgnoreCase);
+        await ScanAsync(hostAddresses, timeout, 64);
+
+        // Retry misses once with a longer timeout to recover replies lost to a busy device
+        // or a burst of parallel probes. Name lookups run only after probing is complete.
+        var missed = hostAddresses.Where(address => !responsiveByIp.ContainsKey(address.ToString())).ToArray();
+        if (missed.Length > 0)
+        {
+            await ScanAsync(missed, Math.Clamp(Math.Max(timeout * 2, 1000), 1000, 3000), 32);
+        }
+
         var responsiveBag = new ConcurrentBag<DiscoveredDeviceItem>();
-
-        var parallelOptions = new ParallelOptions
+        await Parallel.ForEachAsync(responsiveByIp, new ParallelOptions { MaxDegreeOfParallelism = 32, CancellationToken = cancellationToken }, async (entry, ct) =>
         {
-            MaxDegreeOfParallelism = 40,
-            CancellationToken = cancellationToken
-        };
-
-        await Parallel.ForEachAsync(hostAddresses, parallelOptions, async (ip, ct) =>
-        {
-            var ipStr = ip.ToString();
-            var pingResult = await icmp.CheckAsync(ipStr, timeout, ct);
-            if (pingResult.IsReachable)
+            string? hostName = null;
+            try
             {
-                string? hostName = null;
-                try
-                {
-                    using var dnsCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
-                    var entry = await Dns.GetHostEntryAsync(ipStr, dnsCts.Token);
-                    hostName = entry.HostName;
-                }
-                catch { }
-
-                var existing = existingByIp.GetValueOrDefault(ipStr);
-                var suggestedName = !string.IsNullOrWhiteSpace(hostName) ? hostName : $"Device-{ipStr}";
-                var guessedType = GuessDeviceType(suggestedName, ipStr);
-
-                responsiveBag.Add(new DiscoveredDeviceItem
-                {
-                    IpAddress = ipStr,
-                    ResponseTimeMilliseconds = pingResult.ResponseTimeMilliseconds ?? 1,
-                    Hostname = hostName,
-                    SuggestedName = suggestedName,
-                    SuggestedType = guessedType.ToString(),
-                    AlreadyInInventory = existing != null,
-                    ExistingDeviceId = existing?.Id
-                });
+                using var dnsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                dnsCts.CancelAfter(TimeSpan.FromMilliseconds(450));
+                hostName = (await Dns.GetHostEntryAsync(entry.Key, dnsCts.Token)).HostName;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch { }
+
+            var existing = existingByIp.GetValueOrDefault(entry.Key);
+            var suggestedName = !string.IsNullOrWhiteSpace(hostName) ? hostName : $"Device-{entry.Key}";
+            var guessedType = GuessDeviceType(suggestedName, entry.Key);
+            responsiveBag.Add(new DiscoveredDeviceItem
+            {
+                IpAddress = entry.Key,
+                ResponseTimeMilliseconds = entry.Value.ResponseTimeMilliseconds ?? 0,
+                Hostname = hostName,
+                SuggestedName = suggestedName,
+                SuggestedType = guessedType.ToString(),
+                AlreadyInInventory = existing != null,
+                ExistingDeviceId = existing?.Id
+            });
         });
 
         var sorted = responsiveBag
@@ -318,6 +320,18 @@ public sealed class DevicesController(
             ResponsiveCount = sorted.Count,
             Devices = sorted
         });
+
+        async Task ScanAsync(IEnumerable<IPAddress> addresses, int probeTimeout, int concurrency)
+        {
+            await Parallel.ForEachAsync(addresses,
+                new ParallelOptions { MaxDegreeOfParallelism = concurrency, CancellationToken = cancellationToken },
+                async (ip, ct) =>
+                {
+                    var ipText = ip.ToString();
+                    var result = await icmp.CheckAsync(ipText, probeTimeout, ct);
+                    if (result.IsReachable) responsiveByIp.TryAdd(ipText, result);
+                });
+        }
     }
 
     [HttpPost]

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added the multi-target Live Ping page with continuous IP/DNS probes, resolved addresses, raw TTL, latency, reply size, packet loss, and failure highlighting.
+- Added per-result IPAM discovery Add and Update workflows and documented single/multiple record entry with shared inventory details.
+- Updated README, user/admin/training guides, architecture/UI inventory, deployment runbooks, and production validation steps for live Ping, discovery, SNMP interface/VLAN checks, and the self-contained `site` deployment package.
 - Added a Windows Server/IIS deployment package with publish/runtime instructions, external storage configuration, application-pool ACL checklist, upgrade/rollback steps, production integration/viewport/load validation procedures, and Data Protection-aware disaster recovery guidance. These are operator procedures; no target-server validation is claimed.
 - Hardened monitoring transitions with an atomic device-state outbox and idempotent history/notification replay; added crash-replay coverage.
 - Required absolute, external Production data paths and external backup paths, rejected linked data paths, and added an exclusive sidecar process lease for one active application instance.

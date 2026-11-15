@@ -45,7 +45,13 @@ Use **Network devices** and **Servers** to review inventory. Filters narrow the 
 
 *This UI screenshot shows an empty inventory; it is a page reference, not live device data.*
 
-## 4. Add and maintain devices
+## 4. Use Live Ping
+
+Open **Ping** from the navigation menu. Enter an IPv4/IPv6 address or DNS name and select **Add & start ping**. Add more targets to watch them together. Each session repeats ICMP probes and displays the resolved IP, status, latency, raw TTL, reply bytes, packet loss, and last-check time. Failed or lost replies are highlighted in red; remove a row when you no longer need it.
+
+Live Ping is an on-demand troubleshooting view. It does not create a monitored device or an IPAM record, and it does not replace the scheduled monitoring state shown in device inventory.
+
+## 5. Add and maintain devices
 
 Administrators and Operators can add, edit, pause/resume monitoring, import, discover, and remove devices. Read-only users can view the inventory but cannot change it.
 
@@ -80,15 +86,15 @@ Discovery is not an ownership or authorization check. Scan only ranges you are a
 
 Pausing monitoring retains the device in inventory and changes its current status to Unknown. Removing a device removes its inventory record and related topology map nodes/connections. Saved status-history files are retained on disk. Review the impact before deleting.
 
-## 5. Configure optional SNMP
+## 6. Configure optional SNMP
 
 SNMP settings are available in the device editor. Choose the version supported by the device and enter its read-only access details and UDP port. SNMP v2c uses a community string. SNMP v3 uses a username and the configured security level/authentication/privacy fields.
 
-Secrets are encrypted in local storage. The UI does not render saved secret values; leaving a secret field blank preserves the saved secret. Collection is read-only. System/interface information appears when the agent supports it. CPU and memory values depend on the device's MIB implementation and may be unsupported.
+Secrets are encrypted in local storage. The UI does not render saved secret values; leaving a secret field blank preserves the saved secret. Collection is read-only. For Cisco switches, the interface table can show port state, live traffic rates, and assigned VLAN when the device permits the needed IF-MIB, VLAN membership, or bridge PVID tables. Model, firmware, SNMP version, and agent view affect what is available; unsupported values remain blank. MikroTik and other agents likewise depend on their exposed MIBs. CPU and memory values may be unsupported. Use **Hide** to suppress an unnecessary interface in this browser and **Show hidden interfaces** to restore hidden rows.
 
 Allow the application server to reach the approved device on the configured UDP port. Validate SNMP against the actual target network; a successful ping does not prove SNMP support.
 
-## 6. Work with locations, groups, and topology
+## 7. Work with locations, groups, and topology
 
 ### Locations and groups
 
@@ -107,18 +113,20 @@ Before deleting a location or group, reassign or explicitly unassign its devices
 
 Removing a device from inventory also removes its map nodes and connections. A map export is not a full application backup.
 
-## 7. Use IPAM
+## 8. Use IPAM
 
 IPAM is an address-assignment inventory separate from monitoring. It can store IP address, subnet, VLAN, MAC, linked device, location/building/group, switch/port, department, assignee, description, and explicit assignment status.
 
 - Register the subnet before assigning records to it where subnet validation is needed.
+- Open **Discover subnet**, select a registered IPv4 subnet, and scan. Only addresses that answer ICMP from the application server are returned. Use **Add** beside a new address to enter its details, or select multiple new IPs and use **Add selected to IPAM**. Shared details apply to those records; a monitored device is linked automatically if its IP matches.
+- An address already in IPAM offers **Update**. Open it to edit the existing entry instead of making a duplicate. Review assignment status, VLAN, location, switch/port, MAC, assignee, and department before saving.
 - Link a record to a monitored device to keep name, address, type, location, and group aligned with device inventory.
 - Use the CSV template/import preview to map columns and review validation and duplicates. Existing duplicate addresses are skipped; existing entries are not overwritten.
 - Export IPAM records as CSV where permitted.
 
 An ICMP response does not establish who owns an address. IPAM does not perform active conflict detection, configure DHCP, or change network device/host IP settings. IPAM writes and subnet management are Administrator-only.
 
-## 8. Review reports
+## 9. Review reports
 
 Reports show availability and state duration, status transitions, persisted response-time samples, current location/group summaries, and current IPAM records. Authenticated users can use supported report filters; dates are UTC and ranges are limited to 366 days.
 
@@ -126,13 +134,13 @@ Availability is calculated from persisted status transitions. Unknown time is ex
 
 Use CSV export for a data file. To create a PDF, use the browser's Print command and select **Save as PDF**; the server does not generate PDF files.
 
-## 9. Alerts and notifications
+## 10. Alerts and notifications
 
 The application records notifications for a transition to Down and recovery from Down to Up. Repeated checks that remain Down do not create repeated transition alerts. Delivery channels are configured by an Administrator on **Notifications**.
 
 Administrators should configure a channel and use its test-send action before relying on it. Telegram and SMTP require valid external credentials and network access. Notification history shows channel outcomes and retry/dead-letter status. Contact an administrator to review failed delivery.
 
-## 10. Administrator-only pages
+## 11. Administrator-only pages
 
 Depending on role, an Administrator may expose these pages:
 
@@ -145,19 +153,21 @@ Depending on role, an Administrator may expose these pages:
 
 See the [Administrator guide](./ASHPULSE_ADMINISTRATOR_GUIDE.md) for setup and safety procedures.
 
-## 11. Common troubleshooting
+## 12. Common troubleshooting
 
 | Symptom | What to check |
 | --- | --- |
 | Device is Unknown | Confirm monitoring is enabled and wait for a poll. Check the device IP and whether the application server can reach it. |
 | Device is Down | Check power, routing, firewall/ICMP policy, IP accuracy, and the latest check/error information. A failed ping alone does not identify the cause. |
 | SNMP metrics are missing | Check SNMP configuration, UDP path, and agent-supported MIBs. ICMP status is separate. |
+| A subnet discovery result is missing | Discovery lists ICMP responders only. Check the app server's route, ICMP policy, scan range, and whether the target responds to ping. |
+| Ping target shows Down or packet loss | Confirm the address/name and test from the application server's network path; the user's workstation may use a different route. |
 | No alert arrived | Ask an Administrator to inspect settings/history, verify provider credentials/network, and test-send. Do not assume delivery until a test succeeds. |
 | Availability is unavailable | The selected period may lack a persisted status baseline/history. Missing periods are not estimated. |
 | Page or action is denied | Your role may not include that action, or the account may be disabled. Contact an Administrator. |
 | CSV import reports errors | Download the current template, confirm required headers and values, and review preview validation before committing. |
 
-## 12. Related documents
+## 13. Related documents
 
 - [Administrator guide](./ASHPULSE_ADMINISTRATOR_GUIDE.md)
 - [Implementation runbook](./ASHPULSE_IMPLEMENTATION_RUNBOOK.md)

@@ -32,9 +32,9 @@
 
         <div class="form-section-heading snmp-section" id="snmp-fields-heading"><h2>SNMP read-only configuration</h2><p>Secrets are encrypted in local storage and are never included in CSV exports.</p></div>
         <div class="form-grid snmp-section" id="snmp-fields">
-            <div class="form-field"><label asp-for="SnmpVersion"></label><select asp-for="SnmpVersion" asp-items="Html.GetEnumSelectList<SnmpVersion>()" class="form-select" id="snmp-version"></select></div>
+            <div class="form-field"><label asp-for="SnmpVersion"></label><select asp-for="SnmpVersion" class="form-select" id="snmp-version"><option value="@((int)SnmpVersion.V1)">SNMP v1 (legacy)</option><option value="@((int)SnmpVersion.V2c)">SNMP v2c</option><option value="@((int)SnmpVersion.V3)">SNMP v3</option></select></div>
             <div class="form-field"><label asp-for="SnmpPort"></label><input asp-for="SnmpPort" class="form-control" /><span asp-validation-for="SnmpPort" class="field-validation"></span></div>
-            <div class="form-field snmp-v2"><label asp-for="SnmpCommunity"></label><input asp-for="SnmpCommunity" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSnmpCommunity ? "A community string is stored. Leave blank to keep it." : "Required for SNMP v2c.")</span></div>
+            <div class="form-field snmp-community"><label asp-for="SnmpCommunity"></label><input asp-for="SnmpCommunity" type="password" class="form-control" autocomplete="new-password" /><span class="field-hint">@(Model.HasSnmpCommunity ? "A community string is stored. Leave blank to keep it." : "Required for SNMP v1 and v2c.")</span></div>
             <div class="form-field snmp-v3"><label asp-for="SnmpUserName"></label><input asp-for="SnmpUserName" class="form-control" autocomplete="off" /></div>
             <div class="form-field snmp-v3"><label asp-for="SnmpSecurityLevel"></label><select asp-for="SnmpSecurityLevel" asp-items="Html.GetEnumSelectList<SnmpSecurityLevel>()" class="form-select" id="snmp-security"></select></div>
             <div class="form-field snmp-v3 snmp-auth"><label asp-for="SnmpAuthenticationProtocol"></label><select asp-for="SnmpAuthenticationProtocol" asp-items="Html.GetEnumSelectList<SnmpAuthenticationProtocol>()" class="form-select"></select></div>
@@ -56,7 +56,7 @@
             const update = () => {
                 const enabled = method.value === '@((int)MonitoringMethod.IcmpAndSnmp)';
                 document.querySelectorAll('.snmp-section').forEach(item => item.classList.toggle('is-hidden', !enabled));
-                document.querySelectorAll('.snmp-v2').forEach(item => item.classList.toggle('is-hidden', !enabled || version.value !== '@((int)SnmpVersion.V2c)'));
+                document.querySelectorAll('.snmp-community').forEach(item => item.classList.toggle('is-hidden', !enabled || version.value === '@((int)SnmpVersion.V3)'));
                 document.querySelectorAll('.snmp-v3').forEach(item => item.classList.toggle('is-hidden', !enabled || version.value !== '@((int)SnmpVersion.V3)'));
                 document.querySelectorAll('.snmp-auth').forEach(item => item.classList.toggle('is-hidden', security.value === '@((int)SnmpSecurityLevel.NoAuthNoPriv)'));
                 document.querySelectorAll('.snmp-privacy').forEach(item => item.classList.toggle('is-hidden', security.value !== '@((int)SnmpSecurityLevel.AuthPriv)'));

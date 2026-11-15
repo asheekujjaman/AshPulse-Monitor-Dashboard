@@ -99,24 +99,52 @@ public sealed class IpamController(
         var hosts = GenerateIpv4Hosts(networkIp, prefix);
         var existingRecords = (await ipam.GetRecordsAsync(cancellationToken)).ToDictionary(record => record.IpAddress, StringComparer.OrdinalIgnoreCase);
         var existingDevices = (await devices.GetAllAsync(cancellationToken)).ToDictionary(device => device.IpAddress, StringComparer.OrdinalIgnoreCase);
+        var timeout = Math.Clamp(request.TimeoutMilliseconds, 150, 3000);
+        var responsiveByIp = new ConcurrentDictionary<string, IcmpProbeResult>(StringComparer.OrdinalIgnoreCase);
+        await ScanAsync(hosts, timeout, 64);
+        var missed = hosts.Where(address => !responsiveByIp.ContainsKey(address.ToString())).ToArray();
+        if (missed.Length > 0)
+            await ScanAsync(missed, Math.Clamp(Math.Max(timeout * 2, 1000), 1000, 3000), 32);
+
         var responsive = new ConcurrentBag<DiscoveredDeviceItem>();
-        await Parallel.ForEachAsync(hosts, new ParallelOptions { MaxDegreeOfParallelism = 40, CancellationToken = cancellationToken }, async (address, ct) =>
+        await Parallel.ForEachAsync(responsiveByIp, new ParallelOptions { MaxDegreeOfParallelism = 32, CancellationToken = cancellationToken }, async (entry, ct) =>
         {
-            var ip = address.ToString();
-            var ping = await icmp.CheckAsync(ip, Math.Clamp(request.TimeoutMilliseconds, 150, 3000), ct);
-            if (!ping.IsReachable) return;
             string? hostName = null;
-            try { using var dns = new CancellationTokenSource(TimeSpan.FromMilliseconds(450)); hostName = (await Dns.GetHostEntryAsync(ip, dns.Token)).HostName; } catch { }
-            var name = string.IsNullOrWhiteSpace(hostName) ? $"Device-{ip}" : hostName;
+            try
+            {
+                using var dns = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                dns.CancelAfter(TimeSpan.FromMilliseconds(450));
+                hostName = (await Dns.GetHostEntryAsync(entry.Key, dns.Token)).HostName;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch { }
+            var name = string.IsNullOrWhiteSpace(hostName) ? $"Device-{entry.Key}" : hostName;
+            var existingDevice = existingDevices.GetValueOrDefault(entry.Key);
             responsive.Add(new DiscoveredDeviceItem
             {
-                IpAddress = ip, ResponseTimeMilliseconds = ping.ResponseTimeMilliseconds ?? 1, Hostname = hostName,
-                SuggestedName = name, SuggestedType = GuessDiscoveredType(name).ToString(),
-                AlreadyInInventory = existingRecords.ContainsKey(ip), ExistingDeviceId = existingDevices.GetValueOrDefault(ip)?.Id
+                IpAddress = entry.Key, ResponseTimeMilliseconds = entry.Value.ResponseTimeMilliseconds ?? 0, Hostname = hostName,
+                SuggestedName = existingDevice?.Name ?? name, SuggestedType = existingDevice?.Type.ToString() ?? GuessDiscoveredType(name).ToString(),
+                AlreadyInInventory = existingRecords.ContainsKey(entry.Key), ExistingDeviceId = existingDevice?.Id,
+                ExistingIpamRecordId = existingRecords.GetValueOrDefault(entry.Key)?.Id
             });
         });
         var sorted = responsive.OrderBy(item => IPAddress.Parse(item.IpAddress).GetAddressBytes(), ByteArrayComparer.Instance).ToList();
         return Json(new SubnetScanResponse { Success = true, Cidr = canonical, TotalScanned = hosts.Count, ResponsiveCount = sorted.Count, Devices = sorted });
+
+        async Task ScanAsync(IEnumerable<IPAddress> addresses, int probeTimeout, int concurrency)
+        {
+            await Parallel.ForEachAsync(addresses,
+                new ParallelOptions { MaxDegreeOfParallelism = concurrency, CancellationToken = cancellationToken },
+                async (address, ct) =>
+                {
+                    var ip = address.ToString();
+                    var result = await icmp.CheckAsync(ip, probeTimeout, ct);
+                    if (result.IsReachable) responsiveByIp.TryAdd(ip, result);
+                });
+        }
     }
 
     [HttpPost]
@@ -135,7 +163,7 @@ public sealed class IpamController(
         if (request?.Devices is not { Count: > 0 } || request.Devices.Count > 1024) return Json(new AddDiscoveredResult { Error = "Select between 1 and 1,024 IP addresses." });
         var records = await ipam.GetRecordsAsync(cancellationToken);
         var existingIps = records.Select(record => record.IpAddress).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var addedIps = new List<string>(); var skippedIps = new List<string>(); var errors = new List<string>();
+        var addedIps = new List<string>(); var addedRecords = new List<AddedIpamRecord>(); var skippedIps = new List<string>(); var errors = new List<string>();
         foreach (var device in request.Devices)
         {
             if (existingIps.Contains(device.IpAddress)) { skippedIps.Add(device.IpAddress); continue; }
@@ -148,13 +176,13 @@ public sealed class IpamController(
                 SwitchIpAddress = request.SwitchIpAddress, SwitchPort = request.SwitchPort,
                 MacAddress = request.MacAddress, AssignedTo = request.AssignedTo, Department = request.Department
             }, cancellationToken);
-            if (result.Success) { addedIps.Add(device.IpAddress); existingIps.Add(device.IpAddress); }
+            if (result.Success) { addedIps.Add(device.IpAddress); addedRecords.AddRange(result.AddedRecords); existingIps.Add(device.IpAddress); }
             else errors.Add($"{device.IpAddress}: {result.Error}");
         }
         return Json(new AddDiscoveredResult
         {
             Success = addedIps.Count > 0 || (errors.Count == 0 && skippedIps.Count > 0), AddedCount = addedIps.Count,
-            AddedIpAddresses = addedIps, SkippedCount = skippedIps.Count, SkippedIpAddresses = skippedIps,
+            AddedIpAddresses = addedIps, AddedRecords = addedRecords, SkippedCount = skippedIps.Count, SkippedIpAddresses = skippedIps,
             Message = $"Added {addedIps.Count} IP record(s)." + (skippedIps.Count > 0 ? $" {skippedIps.Count} already existed." : string.Empty),
             Error = errors.Count > 0 ? string.Join("; ", errors.Take(4)) : null
         });
@@ -168,7 +196,7 @@ public sealed class IpamController(
         var linkedDevice = (await devices.GetAllAsync(cancellationToken)).FirstOrDefault(item => string.Equals(item.IpAddress, ip, StringComparison.OrdinalIgnoreCase));
         var record = new IpamRecord
         {
-            IpAddress = ip, SubnetId = subnet.Id, VlanId = request.VlanId ?? subnet.VlanId, VlanName = request.VlanName ?? subnet.VlanName,
+            Id = Guid.NewGuid(), IpAddress = ip, SubnetId = subnet.Id, VlanId = request.VlanId ?? subnet.VlanId, VlanName = request.VlanName ?? subnet.VlanName,
             DeviceId = linkedDevice?.Id, DeviceName = linkedDevice?.Name ?? request.DeviceName?.Trim(), DeviceType = linkedDevice?.Type.ToString() ?? request.DeviceType,
             LocationId = linkedDevice?.LocationId ?? request.LocationId ?? subnet.LocationId,
             BuildingId = linkedDevice?.BuildingId ?? request.BuildingId ?? subnet.BuildingId, GroupId = linkedDevice?.GroupId ?? request.GroupId,
@@ -179,7 +207,7 @@ public sealed class IpamController(
         };
         var save = await ipam.SaveRecordAsync(record, cancellationToken);
         return save.Success
-            ? new AddDiscoveredResult { Success = true, AddedCount = 1, AddedIpAddresses = [ip], Message = $"{ip} was added to IPAM." }
+            ? new AddDiscoveredResult { Success = true, AddedCount = 1, AddedIpAddresses = [ip], AddedRecords = [new AddedIpamRecord(ip, record.Id)], Message = $"{ip} was added to IPAM." }
             : new AddDiscoveredResult { Error = save.Error ?? "Could not add IP record." };
     }
 

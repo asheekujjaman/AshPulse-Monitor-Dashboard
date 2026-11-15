@@ -23,15 +23,15 @@ Do not expose the application externally without approved network controls, trus
 
 ## 3. Prepare build and publish output
 
-Use the .NET 10 SDK in the build environment. From the repository root, publish the Web project:
+Use the .NET 10 SDK in the build environment. The client copy-based package is self-contained for Windows x64. From the repository root, first clear/recreate only the local `site` publish-output folder, then publish. Do not use that cleanup step on the live IIS folder:
 
 ```powershell
 dotnet publish src/UniversalITMonitor.Web/UniversalITMonitor.Web.csproj `
-  -c Release -f net10.0 -r win-x64 --self-contained false `
-  -o C:\Sites\AshPulse
+  -c Release -r win-x64 --self-contained true `
+  -o site -p:DebugType=None -p:DebugSymbols=false
 ```
 
-Review the output and generated `web.config`. Do not remove or replace the generated ASP.NET Core Module configuration. Keep configuration and secrets out of general release artifacts.
+Copy the **contents** of `site` into the IIS website folder. The server does not need the .NET runtime separately for this package, but IIS ASP.NET Core Module (ANCM) is still required, so install the x64 .NET 10 Hosting Bundle once. Preserve the generated `web.config`; the package includes the app executable and runtime files. Do not copy developer data or secrets into the release.
 
 ## 4. Prepare IIS
 
@@ -78,6 +78,7 @@ First-run setup is a one-time empty-data-directory flow. After an administrator 
 5. Import remaining device inventory using the current CSV template; review validation and duplicates before commit.
 6. Register relevant subnets and import IPAM data. Link monitored devices where inventory should be authoritative.
 7. Create a topology map linked to inventory device IDs and verify that status refreshes.
+8. Open **Ping** and verify multiple approved IP/DNS targets return live readings. In IPAM, verify subnet discovery and Add/Update actions against approved lab data.
 
 Live provider/agent compatibility cannot be inferred from code or a successful build. Use the [Production test checklist](../PRODUCTION_TEST_CHECKLIST.md) on the target environment.
 

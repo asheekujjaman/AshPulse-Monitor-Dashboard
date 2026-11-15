@@ -1,0 +1,60 @@
+@{
+    ViewData["Title"] = "Live ping";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">NETWORK TOOLS</div>
+        <h1>Live ping</h1>
+        <p class="page-subtitle">Watch multiple IP addresses and DNS names with live ICMP status, latency, TTL and packet loss.</p>
+    </div>
+</div>
+
+<div id="live-ping" class="live-ping-page" data-probe-url="@Url.Action("Probe", "Ping")">
+    <div id="live-ping-antiforgery" class="visually-hidden">@Html.AntiForgeryToken()</div>
+    <section class="panel-card live-ping-controls" aria-labelledby="live-ping-form-title">
+        <div class="panel-heading">
+            <div>
+                <h2 id="live-ping-form-title">Add a target</h2>
+                <p>Enter an IPv4 or IPv6 address, or a DNS name. Each added target starts pinging immediately.</p>
+            </div>
+            <span id="live-ping-state" class="live-ping-indicator is-idle"><span aria-hidden="true"></span><span id="live-ping-state-label">Idle</span></span>
+        </div>
+        <form id="live-ping-form" class="live-ping-form">
+            <label class="discovery-field" for="live-ping-target">IP address or DNS name
+                <input class="form-control" id="live-ping-target" maxlength="253" placeholder="192.168.1.1 or router.example.local" autocomplete="off" required />
+            </label>
+            <label class="discovery-field" for="live-ping-timeout">Timeout
+                <select class="form-select" id="live-ping-timeout">
+                    <option value="500">500 ms</option>
+                    <option value="1000" selected>1 second</option>
+                    <option value="2000">2 seconds</option>
+                    <option value="5000">5 seconds</option>
+                </select>
+            </label>
+            <button class="app-primary-button btn" id="live-ping-add" type="submit">Add &amp; start ping</button>
+        </form>
+        <p id="live-ping-message" class="discovery-message" role="status" aria-live="polite" hidden></p>
+    </section>
+
+    <section class="panel-card live-ping-results" aria-labelledby="live-ping-results-title">
+        <div class="panel-heading">
+            <div>
+                <h2 id="live-ping-results-title">Ping sessions</h2>
+                <p>Probes repeat continuously. Failed or lost replies are highlighted in red.</p>
+            </div>
+            <span id="live-ping-count" class="discovery-selection-count">0 targets</span>
+        </div>
+        <div class="table-responsive">
+            <table class="device-table live-ping-table">
+                <thead><tr><th>Target</th><th>Resolved IP</th><th>Status</th><th>Latency</th><th>TTL (raw)</th><th>Reply bytes</th><th>Packet loss</th><th>Last check</th><th>Action</th></tr></thead>
+                <tbody id="live-ping-rows"></tbody>
+            </table>
+        </div>
+        <div id="live-ping-empty" class="live-ping-empty">No active ping targets. Add an IP address or DNS name above.</div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/live-ping.js" asp-append-version="true"></script>
+}

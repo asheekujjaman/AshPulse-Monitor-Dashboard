@@ -14,6 +14,7 @@
 - Coordinate snapshots, full/selected restores, monitoring, notification delivery, and ordinary web requests with the maintenance lock. A sidecar exclusive file lease enforces one active process per data directory during startup, IIS overlapped recycle, and shutdown.
 - Write application logs as bounded, rotated, secret-redacted JSONL in the data directory. Flush each event and swallow storage IO failures so logging does not break monitoring.
 - Keep IP assignment state explicit. Do not infer ownership from ICMP reachability or configure DHCP/network-device/OS address settings from IPAM.
+- Keep the authenticated Live Ping tool as a temporary multi-target ICMP workflow; its probes do not write device inventory, IPAM data, or scheduled monitoring history.
 - Save each JSON document atomically with per-document locks. Multi-document workflows are coordinated sequentially and the deployment target remains one application instance.
 
 ```mermaid
@@ -87,6 +88,10 @@ Current uptime or downtime is the elapsed time from the persisted `CurrentStateS
 
 SNMP v2c community strings and SNMP v3 authentication/privacy passwords are protected with ASP.NET Core Data Protection before writing to `devices.json`. The UI maps devices to secret-free view models, status JSON contains only safe fields, and CSV exports exclude SNMP configuration secrets. Production Windows deployments protect the Data Protection key ring with DPAPI for the current IIS identity. Keep that identity and key directory when restarting or upgrading.
 
+## Live Ping and subnet discovery
+
+Live Ping accepts multiple IP addresses or DNS names and repeatedly probes them while the page is open. It reports resolved address, response status, latency, raw TTL, reply size, loss, and last check. These page sessions are independent of the persistent `MonitoringWorker` device checks and are not stored as inventory/history records. Device and IPAM subnet discovery are one-time scans from the application server; both show ICMP-responsive hosts only. IPAM discovery uses registered IPv4 subnets and its Add/Update actions write explicit IPAM records without inferring assignment ownership from reachability.
+
 ## Authentication and access
 
 - Local passwords use ASP.NET Core Identity's `PasswordHasher<TUser>`; raw passwords are never written to JSON.
@@ -125,7 +130,7 @@ SNMP v2c community strings and SNMP v3 authentication/privacy passwords are prot
 
 ## Windows Server and IIS runbooks
 
-- [Deployment guide](../DEPLOYMENT_GUIDE.md) documents the framework-dependent .NET 10 publish, production configuration, IIS identity, ACL boundaries, TLS, upgrades, and rollback.
+- [Deployment guide](../DEPLOYMENT_GUIDE.md) documents the self-contained `win-x64` publish, production configuration, IIS identity, ACL boundaries, TLS, upgrades, and rollback. The IIS server still requires ANCM from the Hosting Bundle.
 - [IIS setup checklist](../IIS_SETUP_CHECKLIST.md) and [production test checklist](../PRODUCTION_TEST_CHECKLIST.md) are operator procedures. Blank checkboxes are not evidence of deployment validation.
 - [Disaster recovery guide](../DISASTER_RECOVERY_GUIDE.md) explains validated restore, DPAPI constraints, certificate-protected Data Protection keys, and cross-server migration.
 - Monitoring JSONL retention/compaction and trusted reverse-proxy middleware are not implemented. The runbooks explicitly prohibit external JSONL truncation and proxy-header trust without a code/configuration change and validation.

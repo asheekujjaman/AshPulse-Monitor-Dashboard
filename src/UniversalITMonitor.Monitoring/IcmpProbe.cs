@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using UniversalITMonitor.Core.Monitoring;
 
 namespace UniversalITMonitor.Monitoring;
@@ -11,15 +12,34 @@ public sealed class IcmpProbe : IIcmpProbe
         int timeoutMilliseconds,
         CancellationToken cancellationToken = default)
     {
-        if (!IPAddress.TryParse(ipAddress, out var address))
+        IPAddress address;
+        if (!IPAddress.TryParse(ipAddress, out address!))
         {
-            return new IcmpProbeResult(false, null, "The stored IP address is invalid.");
+            try
+            {
+                var addresses = await Dns.GetHostAddressesAsync(ipAddress.Trim(), cancellationToken);
+                address = addresses.OrderByDescending(item => item.AddressFamily == AddressFamily.InterNetwork).FirstOrDefault()!;
+                if (address is null)
+                    return new IcmpProbeResult(false, null, "The host name did not resolve to an IP address.", Status: "NameResolutionFailure");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (SocketException)
+            {
+                return new IcmpProbeResult(false, null, "The host name could not be resolved.", Status: "NameResolutionFailure");
+            }
+            catch (ArgumentException)
+            {
+                return new IcmpProbeResult(false, null, "The host name could not be resolved.", Status: "NameResolutionFailure");
+            }
         }
 
         using var ping = new Ping();
         try
         {
-            var options = new PingOptions(64, address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+            PingOptions? options = address.AddressFamily == AddressFamily.InterNetwork ? new PingOptions(64, true) : null;
             var reply = await ping.SendPingAsync(
                 address,
                 TimeSpan.FromMilliseconds(timeoutMilliseconds),
@@ -27,9 +47,15 @@ public sealed class IcmpProbe : IIcmpProbe
                 options,
                 cancellationToken);
 
-            return reply.Status == IPStatus.Success
-                ? new IcmpProbeResult(true, reply.RoundtripTime, null)
-                : new IcmpProbeResult(false, null, $"ICMP check returned {reply.Status}.");
+            var reachable = reply.Status == IPStatus.Success;
+            return new IcmpProbeResult(
+                reachable,
+                reachable ? reply.RoundtripTime : null,
+                reachable ? null : $"ICMP check returned {reply.Status}.",
+                reply.Options?.Ttl,
+                reply.Status.ToString(),
+                reply.Address?.ToString() ?? address.ToString(),
+                reply.Buffer.Length);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -37,11 +63,11 @@ public sealed class IcmpProbe : IIcmpProbe
         }
         catch (PingException)
         {
-            return new IcmpProbeResult(false, null, "The ICMP request could not be completed.");
+            return new IcmpProbeResult(false, null, "The ICMP request could not be completed.", Status: "PingError", ResolvedAddress: address.ToString());
         }
         catch (TimeoutException)
         {
-            return new IcmpProbeResult(false, null, "The device did not respond before the check timed out.");
+            return new IcmpProbeResult(false, null, "The device did not respond before the check timed out.", Status: "TimedOut", ResolvedAddress: address.ToString());
         }
     }
 }

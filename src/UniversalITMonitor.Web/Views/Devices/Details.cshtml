@@ -63,7 +63,7 @@
             <div><dt>Monitoring method</dt><dd>@(Model.MonitoringMethod == MonitoringMethod.Icmp ? "ICMP" : "ICMP + SNMP")</dd></div>
             @if (Model.MonitoringMethod == MonitoringMethod.IcmpAndSnmp)
             {
-                <div><dt>SNMP configuration</dt><dd>@(Model.SnmpVersion == SnmpVersion.V2c ? $"SNMP v2c · UDP {Model.SnmpPort}" : $"SNMP v3 · {Model.SnmpSecurityLevel} · UDP {Model.SnmpPort}")</dd></div>
+                <div><dt>SNMP configuration</dt><dd>@(Model.SnmpVersion switch { SnmpVersion.V1 => $"SNMP v1 · UDP {Model.SnmpPort}", SnmpVersion.V2c => $"SNMP v2c · UDP {Model.SnmpPort}", _ => $"SNMP v3 · {Model.SnmpSecurityLevel} · UDP {Model.SnmpPort}" })</dd></div>
                 @if (Model.SnmpVersion == SnmpVersion.V3)
                 {
                     <div><dt>SNMP username</dt><dd>@Model.SnmpUserName</dd></div>

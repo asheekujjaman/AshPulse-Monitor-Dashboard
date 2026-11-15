@@ -163,7 +163,7 @@ public sealed class DeviceService(
             {
                 try
                 {
-                    if (clone.Snmp.Version == SnmpVersion.V2c)
+                    if (clone.Snmp.Version is SnmpVersion.V1 or SnmpVersion.V2c)
                     {
                         clone.Snmp.ProtectedCommunity = UnprotectOrNull(clone.Snmp.ProtectedCommunity);
                     }
@@ -282,11 +282,11 @@ public sealed class DeviceService(
             }
 
             var config = existing?.Snmp;
-            if (input.SnmpVersion == SnmpVersion.V2c)
+            if (input.SnmpVersion is SnmpVersion.V1 or SnmpVersion.V2c)
             {
                 if (string.IsNullOrWhiteSpace(input.SnmpCommunity) && string.IsNullOrWhiteSpace(config?.ProtectedCommunity))
                 {
-                    return "An SNMP v2c community string is required.";
+                    return $"An SNMP {input.SnmpVersion} community string is required.";
                 }
             }
             else

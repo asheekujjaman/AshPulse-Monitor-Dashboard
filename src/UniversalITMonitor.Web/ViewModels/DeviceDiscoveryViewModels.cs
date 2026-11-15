@@ -5,7 +5,7 @@ namespace UniversalITMonitor.Web.ViewModels;
 public sealed class DeviceDiscoveryViewModel
 {
     public string? SubnetCidr { get; set; }
-    public int TimeoutMilliseconds { get; set; } = 500;
+    public int TimeoutMilliseconds { get; set; } = 1000;
     public IReadOnlyList<HierarchyChoice> LocationChoices { get; set; } = [];
     public IReadOnlyList<HierarchyChoice> BuildingChoices { get; set; } = [];
     public IReadOnlyList<HierarchyChoice> GroupChoices { get; set; } = [];
@@ -17,7 +17,7 @@ public sealed record SubnetChoice(string Cidr, string? Location, string? Descrip
 public sealed class SubnetScanRequest
 {
     public string Cidr { get; set; } = string.Empty;
-    public int TimeoutMilliseconds { get; set; } = 500;
+    public int TimeoutMilliseconds { get; set; } = 1000;
 }
 
 public sealed class DiscoveredDeviceItem
@@ -29,6 +29,7 @@ public sealed class DiscoveredDeviceItem
     public string SuggestedType { get; set; } = "Other";
     public bool AlreadyInInventory { get; set; }
     public Guid? ExistingDeviceId { get; set; }
+    public Guid? ExistingIpamRecordId { get; set; }
 }
 
 public sealed class SubnetScanResponse
@@ -103,7 +104,10 @@ public sealed class AddDiscoveredResult
     public int SkippedCount { get; set; }
     public List<string> AddedIpAddresses { get; set; } = [];
     public List<string> SkippedIpAddresses { get; set; } = [];
+    public List<AddedIpamRecord> AddedRecords { get; set; } = [];
 }
+
+public sealed record AddedIpamRecord(string IpAddress, Guid RecordId);
 
 public class IpamDiscoveredAddRequest
 {

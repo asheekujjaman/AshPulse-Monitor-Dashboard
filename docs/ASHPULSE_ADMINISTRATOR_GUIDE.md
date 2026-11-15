@@ -41,7 +41,11 @@ Allow outbound UDP from the web server to the approved agent/port and configure 
 
 Live interoperability with real agents is environment-specific. Validate against a controlled target before rollout and record vendor, firmware, and security settings.
 
-## 6. Configure Telegram and SMTP
+## 6. Live Ping and discovery operations
+
+The **Ping** navigation page lets authenticated users run multiple continuous ICMP probes for IP addresses or DNS names. It reports resolved IP, reachability, latency, raw TTL, reply bytes, packet loss, and last check. This temporary troubleshooting view does not add inventory records. Subnet discovery is separate and lists only ICMP-responsive hosts from the application server.
+
+## 7. Configure Telegram and SMTP
 
 Open **Alerts / Notifications** as Administrator. Configure the selected channel, supply valid credentials and destination, enable it, save, and use **Test send**. Confirm receipt at the actual endpoint before relying on it.
 
@@ -49,25 +53,25 @@ Credential fields are protected using Data Protection and are not returned to th
 
 Notifications are queued for Down and Down-to-Up transitions, not every repeated Down poll. Delivery records show channel results. Transient attempts are bounded; exhausted failures/dead letters need administrator attention. Delivery is not atomic with external provider acceptance, so a narrow crash window can produce a duplicate. Do not claim external delivery is verified until a target-environment test succeeds.
 
-## 7. Configure IPAM and hierarchy
+## 8. Configure IPAM and hierarchy
 
 Register locations/buildings/areas and groups to match the organization's operational structure. Reassign devices before deleting a populated hierarchy node; move child nodes as prompted.
 
-IPAM is an Administrator-managed address inventory. Register relevant subnets, use **Discover subnet** to scan registered IPv4 ranges from /22 through /32, and add one or several responsive hosts with their inventory details. Existing monitored devices are linked automatically. You can also import CSV records through the preview/validation step. Confirm duplicates, subnet membership, and assignment status before commit; ICMP reachability never determines ownership or assignment status.
+IPAM is an Administrator-managed address inventory. Register relevant subnets, use **Discover subnet** to scan registered IPv4 ranges from /22 through /32, and review ICMP-responsive hosts. Use **Add** for one new address or select several and use **Add selected to IPAM**; enter the requested inventory details. Existing monitored devices are linked automatically when their IP matches. Existing IPAM addresses show **Update** and open the current record for editing, avoiding duplicate creation. CSV import is also available through preview/validation. Confirm duplicates, subnet membership, and assignment status before commit; ICMP reachability never determines ownership or assignment status.
 
 IPAM does not configure DHCP, switches, routers, or endpoint network settings. Assignment status is explicit inventory data and is not inferred from ICMP.
 
-## 8. Topology maps
+## 9. Topology maps
 
 Create maps in **Topology**, optionally scoped to a location/building. Place existing devices; nodes reference device IDs. Review connections and node placement, save, and export map JSON for a portable map file. Before importing, inspect the device-reference preview and resolve missing references. Back up the complete application separately; a map export is not a full backup.
 
 Deleting a device removes its related saved map nodes/connections. Coordinate topology changes with inventory cleanup.
 
-## 9. Appearance
+## 10. Appearance
 
 Select Ocean Blue, Midnight Purple, or Emerald Green using the theme selector or **Appearance** page. Theme selection is application-wide; status indicators retain their semantic status colors. Preserve custom organization branding during upgrades and validate it across themes.
 
-## 10. Backups and restore
+## 11. Backups and restore
 
 Open **Backup and restore** to configure automatic interval/retention and an absolute destination, create a manual ZIP, download it, and inspect the recorded result. The default backup directory is `Backups` beside the data directory's parent/application directory. The app creates it when a backup operation requires it.
 
@@ -84,7 +88,7 @@ Backups are integrity-checked ZIP files, not encrypted containers. Sensitive pro
 
 Do not copy, delete, extract over, or manually edit live JSON/JSONL files while the app is running. Use the application restore workflow or a controlled offline procedure.
 
-## 11. Storage locations and permissions
+## 12. Storage locations and permissions
 
 By default, data is stored in `<application content root>\App_Data`, outside `wwwroot`. At local development runtime this is normally the Web project folder; in a stable IIS deployment it is the publish folder. Logs and Data Protection keys are beneath the data directory. Per-device monitoring history/samples and SNMP metrics use child directories as needed. Backups default to a sibling `Backups` folder.
 
@@ -92,7 +96,7 @@ The application creates its default data/log/key directories and creates backup 
 
 Keep `App_Data` outside `wwwroot`. Do not grant broad write access such as `Everyone` or `Users`. Use the [IIS setup checklist](../IIS_SETUP_CHECKLIST.md) for target-specific path and ACL records.
 
-## 12. Routine checks and incident triage
+## 13. Routine checks and incident triage
 
 | Symptom | Operator action |
 | --- | --- |
@@ -104,7 +108,7 @@ Keep `App_Data` outside `wwwroot`. Do not grant broad write access such as `Ever
 | Data integrity page has findings | Review the reconciliation entry, correct source inventory references, and record the resolution. Avoid deleting JSON files to hide a warning. |
 | Backup or restore fails | Preserve the archive and failure record; inspect compatibility, free space, ACLs, and key context. Do not extract over live data. |
 
-## 13. Operational boundaries
+## 14. Operational boundaries
 
 - Storage is local JSON/JSONL, designed for one application instance, not a multi-node/shared-folder deployment.
 - Monitoring samples are append-only and no automatic compaction/retention policy is implemented. Monitor disk usage; do not truncate active files externally.
@@ -113,7 +117,7 @@ Keep `App_Data` outside `wwwroot`. Do not grant broad write access such as `Ever
 - Reports use persisted data; missing history stays unavailable/unverified. PDF is browser print-to-PDF.
 - The source does not configure trusted reverse-proxy forwarded headers. Deploy directly behind IIS TLS unless proxy support is added and validated.
 
-## 14. Administrator handover checklist
+## 15. Administrator handover checklist
 
 - [ ] Identify site owner, application owner, security contact, alert recipient, and recovery owner.
 - [ ] Confirm HTTPS, app-pool identity, data path, and effective ACLs.

@@ -10,9 +10,10 @@ By the end of training, participants should be able to:
 2. Find a device and read current status, last check, response, and history.
 3. Perform inventory actions allowed by their role.
 4. Use locations/groups, topology, and IPAM without confusing them with device monitoring.
-5. Read reports while recognizing unavailable history and current-snapshot sections.
-6. Describe when to escalate a failed check, SNMP issue, or failed notification.
-7. For Administrators, manage users/settings, test alerts, create a backup, and locate recovery guidance.
+5. Run multiple live pings and interpret reachability, latency, TTL, and packet loss.
+6. Read reports while recognizing unavailable history and current-snapshot sections.
+7. Describe when to escalate a failed check, SNMP issue, or failed notification.
+8. For Administrators, manage users/settings, test alerts, create a backup, and locate recovery guidance.
 
 ## 2. Audience and prerequisites
 
@@ -42,8 +43,9 @@ By the end of training, participants should be able to:
 | 45–60 min | Locations, groups, topology concepts | Everyone |
 | 60–70 min | Break | Everyone |
 | 70–85 min | IPAM and subnet inventory | Everyone; edits Admin-only |
-| 85–100 min | Reports, filters, CSV, print-to-PDF | Everyone |
-| 100–115 min | Monitoring, alerts, users, backup | Administrators |
+| 85–95 min | Live Ping and interpreting results | Everyone |
+| 95–105 min | Reports, filters, CSV, print-to-PDF | Everyone |
+| 105–115 min | Monitoring, alerts, users, backup | Administrators |
 | 115–120 min | Knowledge check, escalation contacts, feedback | Everyone |
 
 For a shorter Operator/Read-only session, omit the Administrator track and deliver the [Administrator guide](./ASHPULSE_ADMINISTRATOR_GUIDE.md) separately.
@@ -65,6 +67,7 @@ For a shorter Operator/Read-only session, omit the Administrator track and deliv
 3. Review current status, response time, last check, state duration, and status history.
 4. Demonstrate the IP copy icon and verify the copied value in a safe text field.
 5. Explain that SNMP adds telemetry; SNMP failure alone does not change ICMP status.
+6. If SNMP is enabled, review interface state, traffic rates, and VLAN where the agent exposes the required MIB tables. Hide an unneeded interface and restore it with **Show hidden interfaces**; preferences are browser-specific.
 
 ### C. Device and CSV exercise
 
@@ -87,13 +90,21 @@ Administrators/Operators can perform the lab change; Read-only trainees should d
 
 ### E. IPAM and reports exercise
 
-1. Open an IPAM record and distinguish explicit assignment status from ICMP reachability.
-2. Review subnet validation and duplicate reporting in an import preview.
-3. Open Reports and choose a date range in UTC.
-4. Point out unavailable/unverified historical data and current-snapshot location/IPAM sections.
-5. Export CSV. Use the browser print dialog to demonstrate Save as PDF.
+1. Open **Discover subnet**, choose a registered IPv4 subnet, scan, and review responsive addresses. Discovery only lists hosts that replied to ICMP from the application server.
+2. Use **Add** on one new address and enter its details, or select several new addresses and use **Add selected to IPAM** with shared details.
+3. Explain that an address already in IPAM shows **Update**; opening it edits the existing record instead of creating a duplicate. Reachability does not decide assignment status or ownership.
+4. Review subnet validation and duplicate reporting in a CSV import preview.
+5. Open Reports and choose a date range in UTC. Point out unavailable/unverified history and current-snapshot location/IPAM sections.
+6. Export CSV. Use the browser print dialog to demonstrate Save as PDF.
 
-### F. Administrator lab
+### F. Live Ping exercise
+
+1. Open **Ping**, enter an approved IP address or DNS name, and click **Add & start ping**.
+2. Add a second approved target to observe multiple sessions together.
+3. Read resolved IP, status, latency, raw TTL, reply bytes, packet loss, and last-check time. Explain that failed/lost replies appear red.
+4. Remove a target when finished. Live Ping does not create an inventory record; use device discovery or device add for that.
+
+### G. Administrator lab
 
 1. Create a named Read-only training account. Verify that it can open a permitted page and cannot open an Admin-only page.
 2. Review polling interval, timeout, and concurrency. Do not change production settings during class.
@@ -113,7 +124,9 @@ Administrators/Operators can perform the lab change; Read-only trainees should d
 - [ ] Copy an IP address with the copy icon.
 - [ ] Open a location or group and find its device list.
 - [ ] Open a topology map and locate a device inspector.
+- [ ] Start two approved live Ping sessions; identify latency, raw TTL, and packet loss.
 - [ ] Open an IPAM record and distinguish assignment status from monitoring status.
+- [ ] Review subnet discovery and identify Add for new IPs and Update for existing IPAM entries.
 - [ ] Apply a report filter and explain an unavailable value.
 
 ### Administrators and Operators
@@ -138,11 +151,12 @@ Administrators/Operators can perform the lab change; Read-only trainees should d
 1. A device shows Unknown. Does that prove it is unreachable? **No.** It may not have been checked yet or monitoring may be paused.
 2. A device responds to ICMP but SNMP has an error. Is the device automatically Down? **No.** ICMP reachability and SNMP telemetry are separate.
 3. Does an ICMP reply prove the owner of an IPAM address? **No.** IPAM assignment is explicit inventory data.
-4. Does the application generate a server-side PDF? **No.** Use browser print-to-PDF.
-5. Is a topology map a full data backup? **No.** Use Backup and restore for a complete archive.
-6. Can an Operator configure users or notification credentials? **No.** Those pages are Administrator-only.
-7. Does a documentation screenshot's zero-device count describe production? **No.** The screenshots are empty-inventory UI examples.
-8. Does code training guarantee live SNMP/Telegram/SMTP delivery? **No.** Validate real devices/providers in the deployment environment.
+4. Does a Ping page session add a device to inventory? **No.** It is a temporary live ICMP view.
+5. Does an ICMP discovery scan show every device on a subnet? **No.** It lists responders; routing, filtering, firewall, and scan policy can hide hosts.
+6. Does the application generate a server-side PDF? **No.** Use browser print-to-PDF.
+7. Is a topology map a full data backup? **No.** Use Backup and restore for a complete archive.
+8. Can an Operator configure users or notification credentials? **No.** Those pages are Administrator-only.
+9. Does code training guarantee live SNMP/Telegram/SMTP delivery? **No.** Validate real devices/providers in the deployment environment.
 
 ## 7. Completion and sign-off
 

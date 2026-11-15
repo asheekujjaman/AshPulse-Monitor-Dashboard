@@ -49,14 +49,15 @@
                 Ping timeout
                 <select class="form-select" id="scan-timeout" name="timeoutMilliseconds">
                     <option value="300">300 ms</option>
-                    <option value="500" selected>500 ms</option>
-                    <option value="1000">1 second</option>
+                    <option value="500">500 ms</option>
+                    <option value="1000" selected>1 second</option>
                     <option value="2000">2 seconds</option>
+                    <option value="3000">3 seconds</option>
                 </select>
             </label>
             <button class="app-primary-button btn discovery-scan-button" id="scan-subnet-button" type="submit">Scan subnet</button>
         </form>
-        <p class="discovery-scan-note">Discovery checks IPv4 addresses from the application server using ICMP. Only hosts that answer the ping appear. Scan sizes are limited to /22 through /32.</p>
+        <p class="discovery-scan-note">Discovery probes every IPv4 host twice when needed and resolves names after the scan. Hosts that block ICMP replies cannot be identified by ping. Scan sizes are limited to /22 through /32.</p>
     </section>
 
     <div id="discovery-message" class="discovery-message" role="status" aria-live="polite" hidden></div>
@@ -140,7 +141,7 @@
                 <div class="discovery-form-grid">
                     <label class="discovery-field" for="add-snmp-version">SNMP version
                         <select class="form-select" id="add-snmp-version">
-                            @foreach (var option in Enum.GetValues<SnmpVersion>()) { <option value="@((int)option)">@option</option> }
+                            <option value="@((int)SnmpVersion.V1)">SNMP v1 (legacy)</option><option value="@((int)SnmpVersion.V2c)">SNMP v2c</option><option value="@((int)SnmpVersion.V3)">SNMP v3</option>
                         </select>
                     </label>
                     <label class="discovery-field" for="add-snmp-port">SNMP port<input class="form-control" id="add-snmp-port" type="number" min="1" max="65535" value="161" /></label>
