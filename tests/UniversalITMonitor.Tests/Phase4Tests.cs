@@ -150,7 +150,7 @@ public sealed class Phase4Tests
 
         var device = new NetworkDevice { Name = "Failure router", IpAddress = "192.0.2.161" };
         Assert.AreEqual(DeviceWriteResult.Success, await fixture.Repository.CreateAsync(device));
-        var transition = (await fixture.Repository.RecordChecksAsync([Check(device, DeviceStatus.Down, DateTimeOffset.UtcNow, "timeout")])).Transitions.Single();
+        var transition = (await fixture.Repository.RecordChecksAsync([Check(device, DeviceStatus.Down, DateTimeOffset.UtcNow.AddMinutes(-2), "timeout")])).Transitions.Single();
         await notifications.QueueTransitionAsync(transition);
         await notifications.ProcessPendingAsync();
 
@@ -207,7 +207,7 @@ public sealed class Phase4Tests
         })).Success);
         var device = new NetworkDevice { Name = "Retry router", IpAddress = "192.0.2.163" };
         Assert.AreEqual(DeviceWriteResult.Success, await fixture.Repository.CreateAsync(device));
-        var transition = (await fixture.Repository.RecordChecksAsync([Check(device, DeviceStatus.Down, DateTimeOffset.UtcNow, "timeout")])).Transitions.Single();
+        var transition = (await fixture.Repository.RecordChecksAsync([Check(device, DeviceStatus.Down, DateTimeOffset.UtcNow.AddMinutes(-2), "timeout")])).Transitions.Single();
         await notifications.QueueTransitionAsync(transition);
 
         NotificationRecord? record = null;

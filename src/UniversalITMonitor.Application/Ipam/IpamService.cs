@@ -47,6 +47,28 @@ public sealed class IpamService(
         };
     }
 
+    public async Task<IpamMutationResult> ChangeAllocationAsync(IpamRecord record, string action, string? actor, CancellationToken cancellationToken = default)
+    {
+        if (record.AssignmentStatus is not (IpAssignmentStatus.Assigned or IpAssignmentStatus.Reserved or IpAssignmentStatus.Available))
+            return new(false, Error: "Choose Assigned, Reserved, or Available for an allocation action.");
+        var validation = await ValidateRecordAsync(record, cancellationToken);
+        if (validation is not null) return new(false, Error: validation);
+        var result = await repository.ChangeAllocationAsync(record, new IpamHistoryEvent
+        {
+            Action = action,
+            Actor = string.IsNullOrWhiteSpace(actor) ? "Administrator" : actor,
+            Details = record.ReservationNote
+        }, cancellationToken);
+        return result switch
+        {
+            IpamWriteResult.Success => new(true, record.Id),
+            IpamWriteResult.AllocationConflict => new(false, Error: "This address changed or is already allocated. Refresh the subnet and try again."),
+            _ => new(false, Error: "The address or subnet is invalid. Refresh the subnet and try again.")
+        };
+    }
+
+    public Task<IReadOnlyList<IpamHistoryEvent>> GetHistoryAsync(CancellationToken cancellationToken = default) => repository.GetHistoryAsync(cancellationToken);
+
     public async Task<IpamMutationResult> DeleteRecordAsync(Guid id, CancellationToken cancellationToken = default) =>
         await repository.DeleteRecordAsync(id, cancellationToken)
             ? new(true, id)
@@ -224,7 +246,7 @@ public sealed class IpamService(
         if (record.VlanId is < 1 or > 4094) return "VLAN ID must be between 1 and 4094.";
         if (TooLong(record.VlanName, 120) || TooLong(record.DeviceName, 120) || TooLong(record.DeviceType, 80) ||
             TooLong(record.SwitchName, 120) || TooLong(record.SwitchPort, 80) || TooLong(record.AssignedTo, 160) ||
-            TooLong(record.Department, 120) || TooLong(record.Description, 500)) return "One or more text fields exceed their maximum length.";
+            TooLong(record.Department, 120) || TooLong(record.Description, 500) || TooLong(record.ReservationNote, 300)) return "One or more text fields exceed their maximum length.";
         record.IpAddress = ip;
 
         if (!string.IsNullOrWhiteSpace(record.SwitchIpAddress))
@@ -329,6 +351,12 @@ public sealed class IpamService(
         record.AssignedTo = NullIfBlank(Cell("AssignedTo"));
         record.Department = NullIfBlank(Cell("Department"));
         record.Description = NullIfBlank(Cell("Description"));
+        record.ReservationNote = NullIfBlank(Cell("ReservationNote"));
+        if (!string.IsNullOrWhiteSpace(Cell("ReservedUntilUtc")))
+        {
+            if (DateTimeOffset.TryParse(Cell("ReservedUntilUtc"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var reservedUntil)) record.ReservedUntilUtc = reservedUntil;
+            else errors.Add("ReservedUntilUtc must be a valid ISO 8601 date and time.");
+        }
         var subnetCidr = Cell("SubnetCidr");
         if (!string.IsNullOrWhiteSpace(subnetCidr))
         {
@@ -411,6 +439,7 @@ public sealed class IpamService(
         Location = source.Location, Building = source.Building, Group = source.Group, SwitchName = source.SwitchName,
         SwitchIpAddress = source.SwitchIpAddress, SwitchPort = source.SwitchPort, MacAddress = source.MacAddress,
         AssignedTo = source.AssignedTo, Department = source.Department, Description = source.Description,
+        ReservationNote = source.ReservationNote, ReservedUntilUtc = source.ReservedUntilUtc, UpdatedBy = source.UpdatedBy,
         AssignmentStatus = source.AssignmentStatus, CreatedUtc = source.CreatedUtc, UpdatedUtc = source.UpdatedUtc
     };
 

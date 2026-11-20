@@ -136,7 +136,7 @@ Use CSV export for a data file. To create a PDF, use the browser's Print command
 
 ## 10. Alerts and notifications
 
-The application records notifications for a transition to Down and recovery from Down to Up. Repeated checks that remain Down do not create repeated transition alerts. Delivery channels are configured by an Administrator on **Notifications**.
+The application sends a Down alert after a device has remained Down for one continuous minute. Recovery within that minute suppresses the Down alert; a later recovery sends a recovery alert after the Down delivery attempts finish. Repeated checks that remain Down do not create repeated transition alerts. Delivery channels are configured by an Administrator on **Notifications**.
 
 Administrators should configure a channel and use its test-send action before relying on it. Telegram and SMTP require valid external credentials and network access. Notification history shows channel outcomes and retry/dead-letter status. Contact an administrator to review failed delivery.
 

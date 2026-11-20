@@ -1,0 +1,8 @@
+@model IReadOnlyList<UniversalITMonitor.Core.Models.IpamSubnet>
+@{ ViewData["Title"] = "IP Explorer"; }
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>IP Explorer</h1><p class="page-subtitle">Choose a registered subnet to browse its address space.</p></div></div>
+<nav class="ipam-internal-nav" aria-label="IPAM navigation"><a asp-action="Index">Overview</a><a class="active" asp-action="Explore">IP Explorer</a><a asp-action="Available">Available IPs</a><a asp-action="Reservations">Reservations</a><a asp-action="Subnets">Subnet management</a><a asp-action="History">IP history</a></nav>
+<section class="panel-card"><div class="panel-heading"><div><h2>Registered subnets</h2></div></div>
+@if (Model.Count == 0) { <div class="empty-state"><h3>No subnet to explore</h3><p>Register a subnet first.</p><a class="app-primary-link" asp-action="CreateSubnet">Register subnet</a></div> }
+else { <div class="ipam-subnet-picker">@foreach (var subnet in Model) { <a class="ipam-subnet-choice" asp-action="Explore" asp-route-id="@subnet.Id"><strong>@subnet.Cidr</strong><span>@subnet.Location @if (subnet.VlanId is not null) { <text>· VLAN @subnet.VlanId</text> }</span><b>Open →</b></a> }</div> }
+</section>

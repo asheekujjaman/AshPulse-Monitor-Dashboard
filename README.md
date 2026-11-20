@@ -66,7 +66,7 @@ Administrators and Operators can create, edit, import, delete, and enable or pau
 
 - Administrators configure Telegram Bot API and SMTP email delivery, enable either channel, and send test messages from **Notifications**.
 - Telegram bot tokens and SMTP usernames/passwords are encrypted with ASP.NET Core Data Protection in the local JSON settings file. The UI exposes only whether a credential is saved; delivery logs and exports never include credentials.
-- The monitor queues alerts on a transition to DOWN and a recovery from DOWN to UP. Repeated DOWN checks do not create repeat alerts. The durable notification outbox runs independently from monitoring and records per-channel delivery results.
+- The monitor queues a DOWN alert only after the device has remained DOWN for one continuous minute. Recovery within that minute suppresses the DOWN alert and its recovery message; later recovery waits for the DOWN delivery attempt to finish. Repeated DOWN checks do not create repeat alerts. The durable notification outbox runs independently from monitoring and records per-channel delivery results.
 - Transient Telegram/SMTP failures retry with bounded backoff for up to five attempts; permanent failures and exhausted retries appear as dead letters. Administrators can retry dead-lettered channels. A process crash after a provider accepts a message but before its result is saved can cause an at-least-once duplicate.
 - Telegram and SMTP sending code is implemented, but live provider delivery has not been tested against real provider credentials or servers. Configure and use the test-send action in the target environment before relying on delivery.
 

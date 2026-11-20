@@ -24,8 +24,8 @@
         lg: { width: 170, height: 130, label: 'Big' }
     };
     let currentDefaultSize = 'md';
-    const MAP_WIDTH = 1600;
-    const MAP_HEIGHT = 1000;
+    const MAP_WIDTH = 3200;
+    const MAP_HEIGHT = 2000;
     const ICON_GROUPS = [
         { label: 'Network', values: ['Router', 'Switch', 'CoreSwitch', 'DistributionSwitch', 'AccessSwitch', 'Firewall', 'AccessPoint', 'WirelessAccessPoint', 'Modem', 'Gateway', 'LoadBalancer', 'Vpn', 'Internet', 'Cloud', 'Fiber', 'Subnet'] },
         { label: 'Compute and storage', values: ['Server', 'VirtualMachine', 'Hypervisor', 'Storage', 'Database', 'Backup', 'Rack'] },
@@ -489,11 +489,17 @@
                 state.map.nodes ||= [];
                 state.map.connections ||= [];
                 state.map.annotations ||= [];
+                let repairedNodePositions = false;
                 for (const node of state.map.nodes) {
                     node.id ||= node.deviceId;
                     node.kind ||= 'Device';
                     if (!node.width) node.width = 160;
                     if (!node.height) node.height = 128;
+                    const x = Math.max(0, Math.min(MAP_WIDTH - node.width, Number(node.x) || 0));
+                    const y = Math.max(0, Math.min(MAP_HEIGHT - node.height, Number(node.y) || 0));
+                    if (x !== node.x || y !== node.y) repairedNodePositions = true;
+                    node.x = x;
+                    node.y = y;
                 }
                 state.devices = data.devices || [];
                 state.deviceById = new Map(state.devices.map(device => [device.id.toLowerCase(), device]));
@@ -511,6 +517,10 @@
                 document.getElementById('map-export').disabled = !hasSavedMap();
                 fitMap();
                 render();
+                if (repairedNodePositions) {
+                    markDirty();
+                    notify('Items outside the workspace were moved inside. Save the map to keep the updated positions.');
+                }
             })
             .catch(error => notify(error.message, true));
     }
@@ -535,10 +545,57 @@
     function renderDevices() {
         const query = document.getElementById('map-device-search').value.trim().toLowerCase();
         const placed = new Set(state.map.nodes.filter(node => node.kind === 'Device').map(node => node.deviceId.toLowerCase()));
+        const getLocationKey = device => {
+            const buildingKey = String(device.buildingId || '').toLowerCase();
+            if (buildingKey && state.mapLocationById.has(buildingKey)) return buildingKey;
+            const locationKey = String(device.locationId || '').toLowerCase();
+            return locationKey && state.mapLocationById.has(locationKey) ? locationKey : '';
+        };
+        const previousGroups = [...deviceList.querySelectorAll('[data-device-group][open]')]
+            .map(group => group.dataset.deviceGroup);
+        const hadGroups = Boolean(deviceList.querySelector('[data-device-group]'));
+        const knownOpenGroups = new Set(previousGroups);
         deviceList.replaceChildren();
-        const found = state.devices.filter(device => !placed.has(device.id.toLowerCase()) &&
-            `${device.name} ${device.ipAddress} ${device.deviceType}`.toLowerCase().includes(query));
-        for (const device of found) {
+        const available = state.devices.filter(device => {
+            if (placed.has(device.id.toLowerCase())) return false;
+            const locationKey = getLocationKey(device);
+            const location = locationKey ? state.mapLocationById.get(locationKey) : null;
+            return `${device.name} ${device.ipAddress} ${device.deviceType} ${device.location || ''} ${device.building || ''} ${device.group || ''} ${location?.name || ''}`
+                .toLowerCase().includes(query);
+        });
+
+        const locationIds = new Set(state.mapLocations.map(location => location.id.toLowerCase()));
+        const devicesByLocation = new Map();
+        const unassigned = [];
+        for (const device of available) {
+            const locationKey = getLocationKey(device);
+            if (locationKey && locationIds.has(locationKey)) {
+                if (!devicesByLocation.has(locationKey)) devicesByLocation.set(locationKey, []);
+                devicesByLocation.get(locationKey).push(device);
+            } else {
+                unassigned.push(device);
+            }
+        }
+
+        const locationsById = new Map(state.mapLocations.map(location => [location.id.toLowerCase(), location]));
+        const childrenByParent = new Map();
+        for (const location of state.mapLocations) {
+            const parentKey = location.parentLocationId ? String(location.parentLocationId).toLowerCase() : '';
+            if (!childrenByParent.has(parentKey)) childrenByParent.set(parentKey, []);
+            childrenByParent.get(parentKey).push(location);
+        }
+        for (const children of childrenByParent.values()) children.sort((left, right) => left.name.localeCompare(right.name));
+
+        const matchingCount = (locationId, seen = new Set()) => {
+            const key = String(locationId).toLowerCase();
+            if (seen.has(key)) return 0;
+            seen.add(key);
+            let count = devicesByLocation.get(key)?.length || 0;
+            for (const child of childrenByParent.get(key) || []) count += matchingCount(child.id, seen);
+            return count;
+        };
+
+        const appendDeviceCard = (device, container) => {
             const card = document.createElement('div');
             card.className = 'map-device-card';
             card.draggable = canEdit && !state.locked;
@@ -553,9 +610,55 @@
                 add.addEventListener('click', () => addDeviceToMap(device.id, 80 + (state.map.nodes.length % 5) * 230, 70 + Math.floor(state.map.nodes.length / 5) * 165));
                 card.append(add);
             }
-            deviceList.append(card);
+            container.append(card);
+        };
+
+        const appendLocation = (location, container, ancestors = new Set()) => {
+            const key = location.id.toLowerCase();
+            if (ancestors.has(key)) return 0;
+            const nextAncestors = new Set(ancestors);
+            nextAncestors.add(key);
+            const count = matchingCount(key);
+            if (!count) return 0;
+
+            const details = document.createElement('details');
+            details.className = 'map-device-location-group';
+            details.dataset.deviceGroup = `location:${key}`;
+            details.open = query.length > 0 || (hadGroups ? knownOpenGroups.has(details.dataset.deviceGroup) : true);
+            const label = location.name.split(' / ').filter(Boolean).at(-1) || location.name;
+            const summary = document.createElement('summary');
+            summary.title = location.name;
+            summary.append(el('span', {}, label), el('small', {}, `${count} device${count === 1 ? '' : 's'}`));
+            details.append(summary);
+
+            for (const device of devicesByLocation.get(key) || []) appendDeviceCard(device, details);
+            for (const child of childrenByParent.get(key) || []) appendLocation(child, details, nextAncestors);
+            container.append(details);
+            return count;
+        };
+
+        let renderedCount = 0;
+        const roots = state.mapLocations.filter(location => {
+            const parentKey = location.parentLocationId ? String(location.parentLocationId).toLowerCase() : '';
+            return !parentKey || !locationsById.has(parentKey);
+        }).sort((left, right) => left.name.localeCompare(right.name));
+        for (const location of roots) renderedCount += appendLocation(location, deviceList);
+
+        if (unassigned.length) {
+            const groupId = 'unassigned';
+            const details = document.createElement('details');
+            details.className = 'map-device-location-group';
+            details.dataset.deviceGroup = groupId;
+            details.open = query.length > 0 || (hadGroups ? knownOpenGroups.has(groupId) : true);
+            const summary = document.createElement('summary');
+            summary.append(el('span', {}, 'Unassigned location'), el('small', {}, `${unassigned.length} device${unassigned.length === 1 ? '' : 's'}`));
+            details.append(summary);
+            for (const device of unassigned) appendDeviceCard(device, details);
+            deviceList.append(details);
+            renderedCount += unassigned.length;
         }
-        if (!found.length) deviceList.append(el('p', { class: 'map-list-empty' }, query ? 'No matching available devices.' : 'All inventory devices are on this map.'));
+
+        if (!renderedCount) deviceList.append(el('p', { class: 'map-list-empty' }, query ? 'No matching available devices.' : 'All inventory devices are on this map.'));
     }
 
     function renderEntities() {
@@ -866,6 +969,8 @@
             button.addEventListener('click', () => {
                 node.width = info.width;
                 node.height = info.height;
+                node.x = mapCoordinate(node.x, MAP_WIDTH - node.width);
+                node.y = mapCoordinate(node.y, MAP_HEIGHT - node.height);
                 markDirty();
                 updateNodeGeometryElement(node, state.nodeElements.get(String(node.id || node.deviceId).toLowerCase()));
                 updateConnectedLines(node);
@@ -880,6 +985,8 @@
         slider.addEventListener('input', event => {
             node.width = Number(event.target.value);
             node.height = Math.max(70, Math.min(260, Math.round(node.width * 0.8)));
+            node.x = mapCoordinate(node.x, MAP_WIDTH - node.width);
+            node.y = mapCoordinate(node.y, MAP_HEIGHT - node.height);
             dimensions.textContent = `${Math.round(node.width)} × ${Math.round(node.height)}`;
             for (const preset of presetButtons) {
                 preset.button.classList.toggle('is-active', Math.abs(node.width - preset.info.width) < 6 && Math.abs(node.height - preset.info.height) < 6);
@@ -1287,8 +1394,8 @@
         const annotation = {
             id: crypto.randomUUID(),
             kind,
-            x: snap(point.x),
-            y: snap(point.y),
+            x: mapCoordinate(point.x),
+            y: mapCoordinate(point.y, MAP_HEIGHT),
             width: kind === 'Text' ? 140 : 0,
             height: kind === 'Text' ? 30 : 0,
             strokeColor: stroke,
@@ -1303,12 +1410,15 @@
         state.selectedDeviceId = null;
         state.selectedConnectionId = null;
         if (kind === 'Text') {
+            annotation.x = mapCoordinate(annotation.x, MAP_WIDTH - annotation.width);
+            annotation.y = mapCoordinate(annotation.y, MAP_HEIGHT - annotation.height);
+            state.pointer = null;
             renderAnnotations();
             showAnnotationDetails(annotation.id);
             markDirty();
             return;
         }
-        state.pointer = { mode: 'draw', annotation, startX: snap(point.x), startY: snap(point.y) };
+        state.pointer = { mode: 'draw', annotation, startX: annotation.x, startY: annotation.y };
         canvas.setPointerCapture?.(event.pointerId);
     }
 
@@ -1339,7 +1449,7 @@
         const icon = selectedIcon === 'Auto' ? getDefaultIconForDeviceType(device?.deviceType) : selectedIcon;
         const sizeInfo = SIZES[currentDefaultSize] || SIZES.md;
         
-        state.map.nodes.push({ id, kind: 'Device', deviceId: id, icon, x, y, width: sizeInfo.width, height: sizeInfo.height });
+        state.map.nodes.push({ id, kind: 'Device', deviceId: id, icon, x: mapCoordinate(x, MAP_WIDTH - sizeInfo.width), y: mapCoordinate(y, MAP_HEIGHT - sizeInfo.height), width: sizeInfo.width, height: sizeInfo.height });
         state.selectedNodeId = id;
         state.selectedDeviceId = id;
         state.selectedConnectionId = null;
@@ -1362,7 +1472,7 @@
             groupId: item.kind === 'Group' ? item.id : null,
             locationId: item.kind === 'Location' ? item.id : null,
             icon: item.kind === 'Group' ? 'Group' : 'Building',
-            x, y, width: sizeInfo.width, height: sizeInfo.height
+            x: mapCoordinate(x, MAP_WIDTH - sizeInfo.width), y: mapCoordinate(y, MAP_HEIGHT - sizeInfo.height), width: sizeInfo.width, height: sizeInfo.height
         };
         state.map.nodes.push(node);
         state.selectedNodeId = node.id;
@@ -1452,6 +1562,10 @@
         return document.getElementById('map-snap-grid')?.checked ? Math.round(value / 24) * 24 : value;
     }
 
+    function mapCoordinate(value, max = MAP_WIDTH, min = 0) {
+        return Math.max(min, Math.min(max, snap(value)));
+    }
+
     function setToolMode(mode) {
         state.toolMode = mode;
         state.connectStartId = null;
@@ -1517,12 +1631,12 @@
             width: Math.abs(annotation.width) || 40,
             height: Math.abs(annotation.height) || 40
         }));
-        const bounds = [...nodeBounds, ...drawingBounds];
-        if (!bounds.length) { state.panX = 0; state.panY = 0; state.zoom = 1; applyViewBox(); return; }
-        const left = Math.min(...bounds.map(item => item.x)) - 80;
-        const top = Math.min(...bounds.map(item => item.y)) - 80;
-        const right = Math.max(...bounds.map(item => item.x + item.width)) + 80;
-        const bottom = Math.max(...bounds.map(item => item.y + item.height)) + 80;
+        const bounds = [{ x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT }, ...nodeBounds, ...drawingBounds];
+        const padding = 48;
+        const left = Math.min(...bounds.map(item => item.x)) - padding;
+        const top = Math.min(...bounds.map(item => item.y)) - padding;
+        const right = Math.max(...bounds.map(item => item.x + item.width)) + padding;
+        const bottom = Math.max(...bounds.map(item => item.y + item.height)) + padding;
         const width = Math.max(480, right - left);
         const height = Math.max(360, bottom - top);
         state.zoom = Math.max(0.4, Math.min(2.5, Math.min(MAP_WIDTH / width, MAP_HEIGHT / height)));
@@ -1589,9 +1703,8 @@
 
         if (drag.mode === 'node') {
             drag.moved = true;
-            // Expansive coordinates: allows placement anywhere in wide workspace (-2000 to 6000)
-            const newX = snap(drag.nodeX + point.x - drag.startX);
-            const newY = snap(drag.nodeY + point.y - drag.startY);
+            const newX = mapCoordinate(drag.nodeX + point.x - drag.startX, MAP_WIDTH - drag.node.width);
+            const newY = mapCoordinate(drag.nodeY + point.y - drag.startY, MAP_HEIGHT - drag.node.height);
             drag.node.x = newX;
             drag.node.y = newY;
 
@@ -1602,8 +1715,8 @@
             updateConnectedLines(drag.node);
         } else if (drag.mode === 'resize') {
             drag.moved = true;
-            drag.node.width = Math.max(90, Math.min(320, drag.width + point.x - drag.startX));
-            drag.node.height = Math.max(70, Math.min(260, drag.height + point.y - drag.startY));
+            drag.node.width = Math.max(90, Math.min(320, MAP_WIDTH - drag.node.x, drag.width + point.x - drag.startX));
+            drag.node.height = Math.max(70, Math.min(260, MAP_HEIGHT - drag.node.y, drag.height + point.y - drag.startY));
             if (!animationFrameId) {
                 animationFrameId = requestAnimationFrame(() => {
                     updateNodeGeometryElement(drag.node, drag.group);
@@ -1613,8 +1726,12 @@
             }
         } else if (drag.mode === 'annotation') {
             drag.moved = true;
-            drag.annotation.x = snap(drag.x + point.x - drag.startX);
-            drag.annotation.y = snap(drag.y + point.y - drag.startY);
+            const minX = Math.max(0, -drag.annotation.width);
+            const maxX = Math.min(MAP_WIDTH, MAP_WIDTH - drag.annotation.width);
+            const minY = Math.max(0, -drag.annotation.height);
+            const maxY = Math.min(MAP_HEIGHT, MAP_HEIGHT - drag.annotation.height);
+            drag.annotation.x = mapCoordinate(drag.x + point.x - drag.startX, maxX, minX);
+            drag.annotation.y = mapCoordinate(drag.y + point.y - drag.startY, maxY, minY);
             if (!animationFrameId) {
                 animationFrameId = requestAnimationFrame(() => {
                     renderAnnotations();
@@ -1622,14 +1739,16 @@
                 });
             }
         } else if (drag.mode === 'draw') {
+            const endX = mapCoordinate(point.x);
+            const endY = mapCoordinate(point.y, MAP_HEIGHT);
             if (drag.annotation.kind === 'Line') {
-                drag.annotation.width = point.x - drag.startX;
-                drag.annotation.height = point.y - drag.startY;
+                drag.annotation.width = endX - drag.startX;
+                drag.annotation.height = endY - drag.startY;
             } else {
-                drag.annotation.x = Math.min(drag.startX, point.x);
-                drag.annotation.y = Math.min(drag.startY, point.y);
-                drag.annotation.width = Math.abs(point.x - drag.startX);
-                drag.annotation.height = Math.abs(point.y - drag.startY);
+                drag.annotation.x = Math.min(drag.startX, endX);
+                drag.annotation.y = Math.min(drag.startY, endY);
+                drag.annotation.width = Math.abs(endX - drag.startX);
+                drag.annotation.height = Math.abs(endY - drag.startY);
             }
             if (!animationFrameId) {
                 animationFrameId = requestAnimationFrame(() => {
@@ -1680,11 +1799,11 @@
         const point = svgPoint(event);
         
         if (deviceId) {
-            addDeviceToMap(deviceId, snap(point.x - 80), snap(point.y - 50));
+            addDeviceToMap(deviceId, mapCoordinate(point.x - 80), mapCoordinate(point.y - 50, MAP_HEIGHT));
         } else if (entityJson) {
             try {
                 const entity = JSON.parse(entityJson);
-                addEntityToMap(entity, snap(point.x - 80), snap(point.y - 50));
+                addEntityToMap(entity, mapCoordinate(point.x - 80), mapCoordinate(point.y - 50, MAP_HEIGHT));
             } catch {}
         }
     });
@@ -1726,6 +1845,8 @@
                     const target = SIZES[sz];
                     node.width = target.width;
                     node.height = target.height;
+                    node.x = mapCoordinate(node.x, MAP_WIDTH - node.width);
+                    node.y = mapCoordinate(node.y, MAP_HEIGHT - node.height);
                     markDirty();
                     updateNodeGeometryElement(node, state.nodeElements.get(String(node.id || node.deviceId).toLowerCase()));
                     updateConnectedLines(node);
@@ -1752,11 +1873,17 @@
         if (!canEdit || state.locked || !state.map.nodes.length) return;
         const sizeInfo = SIZES[currentDefaultSize] || SIZES.md;
         const ordered = [...state.map.nodes].sort((left, right) => left.y - right.y || left.x - right.x);
+        const columns = Math.max(1, Math.ceil(Math.sqrt(ordered.length * MAP_WIDTH / MAP_HEIGHT)));
+        const rows = Math.ceil(ordered.length / columns);
+        const cellWidth = MAP_WIDTH / columns;
+        const cellHeight = MAP_HEIGHT / rows;
         ordered.forEach((node, index) => {
-            node.width = sizeInfo.width;
-            node.height = sizeInfo.height;
-            node.x = 80 + (index % 5) * (sizeInfo.width + 120);
-            node.y = 80 + Math.floor(index / 5) * (sizeInfo.height + 60);
+            const column = index % columns;
+            const row = Math.floor(index / columns);
+            node.width = Math.max(90, Math.min(sizeInfo.width, cellWidth - 24));
+            node.height = Math.max(70, Math.min(sizeInfo.height, cellHeight - 24));
+            node.x = column * cellWidth + (cellWidth - node.width) / 2;
+            node.y = row * cellHeight + (cellHeight - node.height) / 2;
         });
         markDirty();
         render();

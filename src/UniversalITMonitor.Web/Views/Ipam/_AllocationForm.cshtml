@@ -1,0 +1,14 @@
+@model IpamAllocationFormModel
+@using UniversalITMonitor.Core.Models
+<form asp-action="Allocate" method="post" class="ipam-allocation-form">
+    <input type="hidden" name="IpAddress" value="@Model.IpAddress" /><input type="hidden" name="SubnetId" value="@Model.SubnetId" />
+    <label>Change to<select name="AssignmentStatus" required>
+        @if (Model.CurrentStatus == IpAssignmentStatus.Available) { <option value="Reserved">Reserved</option><option value="Assigned">Assigned</option> }
+        else if (Model.CurrentStatus == IpAssignmentStatus.Reserved) { <option value="Assigned">Assigned (convert)</option><option value="Available">Available (release)</option> }
+        else if (Model.CurrentStatus == IpAssignmentStatus.Assigned) { <option value="Available">Available (release)</option> }
+        else { <option value="Available">Available (release)</option> }
+    </select></label>
+    <label>Assigned to<input name="AssignedTo" value="@Model.AssignedTo" maxlength="160" /></label>
+    <label>Reservation note<input name="ReservationNote" value="@Model.Note" maxlength="300" /></label>
+    <button class="app-primary-button" type="submit">Save</button>
+</form>

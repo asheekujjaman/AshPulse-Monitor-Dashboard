@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Numerics;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -59,8 +60,132 @@ public sealed class IpamController(
                 LastCheckUtc = record.DeviceId is { } checkId && currentDevices.TryGetValue(checkId, out var checkDevice) ? checkDevice.LastCheckUtc : null
             }).ToArray(),
             Subnets = allSubnets,
-            MatchedSubnets = matchedSubnets
+            MatchedSubnets = matchedSubnets,
+            TotalAssigned = allRecords.Count(record => record.AssignmentStatus == IpAssignmentStatus.Assigned),
+            TotalReserved = allRecords.Count(record => record.AssignmentStatus == IpAssignmentStatus.Reserved),
+            TotalConflict = allRecords.Count(record => record.AssignmentStatus == IpAssignmentStatus.Conflict),
+            TotalUnknown = allRecords.Count(record => record.AssignmentStatus == IpAssignmentStatus.Unknown),
+            SubnetSummaries = allSubnets.Select(subnet => BuildSubnetSummary(subnet, allRecords.Where(record => record.SubnetId == subnet.Id).ToArray())).ToArray()
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Explore(Guid? id, int page = 1, int pageSize = 100, string? view = "grid", string? search = null, IpAssignmentStatus? status = null, CancellationToken cancellationToken = default)
+    {
+        if (id is null) return View("ExploreSelect", await ipam.GetSubnetsAsync(cancellationToken));
+        var subnet = await ipam.GetSubnetAsync(id.Value, cancellationToken);
+        if (subnet is null) return NotFound();
+        page = Math.Max(1, page);
+        pageSize = pageSize is 200 or 500 ? pageSize : 100;
+        var records = (await ipam.GetRecordsAsync(cancellationToken)).Where(record => record.SubnetId == id.Value).ToArray();
+        var monitoringStatuses = (await devices.GetAllAsync(cancellationToken)).ToDictionary(device => device.Id, device => device.Status);
+        var summary = BuildSubnetSummary(subnet, records);
+        var isIpv6 = IPAddress.TryParse(subnet.NetworkAddress, out var parsedNetwork) && parsedNetwork.AddressFamily == AddressFamily.InterNetworkV6;
+        IEnumerable<IpamExplorerRow> matching;
+        long total;
+        if (isIpv6)
+        {
+            matching = records.OrderBy(record => record.IpAddress, StringComparer.OrdinalIgnoreCase)
+                .Select(record => new IpamExplorerRow(record.IpAddress, record.AssignmentStatus, record));
+            if (status is { } ipv6Status) matching = matching.Where(row => row.Status == ipv6Status);
+            if (!string.IsNullOrWhiteSpace(search)) matching = matching.Where(row => MatchesSearch(row.Record, row.IpAddress, search));
+            var rows = matching.Select(row => AddMonitoringStatus(row, monitoringStatuses)).ToArray(); total = rows.LongLength;
+            return View("Explore", new IpamExplorerViewModel { Subnet = subnet, Rows = rows.Skip((page - 1) * pageSize).Take(pageSize).ToArray(), Page = page, PageSize = pageSize, Total = total, Assigned = summary.AssignedCount, Reserved = summary.ReservedCount, Available = summary.AvailableCount, Conflict = summary.ConflictCount, Unknown = summary.UnknownCount, View = "table", Search = search, Status = status, IsIpv6 = true, MonitoringStatuses = monitoringStatuses });
+        }
+
+        IpamAddressMath.TryGetIpv4UsableRange(subnet, out var usableStart, out var usableEnd);
+        var usable = (Start: usableStart, End: usableEnd);
+        var byIp = records.ToDictionary(record => record.IpAddress, StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            IpamExplorerRow[] searchedRows;
+            if (IpamService.TryNormalizeIpAddress(term, out var normalizedSearch) && IsInSubnet(normalizedSearch, subnet))
+            {
+                byIp.TryGetValue(normalizedSearch, out var searchedRecord);
+                var searchedStatus = searchedRecord?.AssignmentStatus ?? IpAssignmentStatus.Available;
+                searchedRows = status is null || status == searchedStatus ? [new(normalizedSearch, searchedStatus, searchedRecord)] : [];
+            }
+            else
+            {
+                searchedRows = records.Where(record => MatchesSearch(record, record.IpAddress, term))
+                    .Where(record => status is null || record.AssignmentStatus == status)
+                    .Select(record => new IpamExplorerRow(record.IpAddress, record.AssignmentStatus, record)).OrderBy(row => IpamAddressMath.ToIpv4Number(row.IpAddress)).ToArray();
+            }
+            searchedRows = searchedRows.Select(row => AddMonitoringStatus(row, monitoringStatuses)).ToArray();
+            return View("Explore", new IpamExplorerViewModel { Subnet = subnet, Rows = searchedRows.Skip((page - 1) * pageSize).Take(pageSize).ToArray(), Page = page, PageSize = pageSize, Total = searchedRows.LongLength, Assigned = summary.AssignedCount, Reserved = summary.ReservedCount, Available = summary.AvailableCount, Conflict = summary.ConflictCount, Unknown = summary.UnknownCount, View = view == "table" ? "table" : "grid", Search = search, Status = status, MonitoringStatuses = monitoringStatuses });
+        }
+        if (status == IpAssignmentStatus.Available)
+        {
+            var availableRows = GetAvailablePage(usable.Start, usable.End, byIp, page, pageSize);
+            matching = availableRows;
+            total = summary.AvailableCount;
+        }
+        else if (status is { } selectedStatus)
+        {
+            matching = records.Where(record => record.AssignmentStatus == selectedStatus)
+                .Select(record => new IpamExplorerRow(record.IpAddress, record.AssignmentStatus, record)).OrderBy(row => IpToNumber(row.IpAddress));
+            if (!string.IsNullOrWhiteSpace(search)) matching = matching.Where(row => MatchesSearch(row.Record, row.IpAddress, search));
+            var filtered = matching.ToArray(); total = filtered.LongLength;
+            return View("Explore", new IpamExplorerViewModel { Subnet = subnet, Rows = filtered.Select(row => AddMonitoringStatus(row, monitoringStatuses)).Skip((page - 1) * pageSize).Take(pageSize).ToArray(), Page = page, PageSize = pageSize, Total = total, Assigned = summary.AssignedCount, Reserved = summary.ReservedCount, Available = summary.AvailableCount, Conflict = summary.ConflictCount, Unknown = summary.UnknownCount, View = view == "table" ? "table" : "grid", Search = search, Status = status, MonitoringStatuses = monitoringStatuses });
+        }
+        else
+        {
+            total = summary.UsableCount;
+            var offset = (BigInteger)(page - 1) * pageSize;
+            var start = usable.Start + offset;
+            var end = BigInteger.Min(usable.End, start + pageSize - 1);
+            var generated = new List<IpamExplorerRow>();
+            for (var value = start; value <= end; value++)
+            {
+                var address = NumberToIp(value);
+                byIp.TryGetValue(address, out var record);
+                generated.Add(new IpamExplorerRow(address, record?.AssignmentStatus ?? IpAssignmentStatus.Available, record));
+            }
+            matching = generated;
+        }
+
+        var pageRows = matching.Select(row => AddMonitoringStatus(row, monitoringStatuses)).ToArray();
+        if (!string.IsNullOrWhiteSpace(search)) pageRows = pageRows.Where(row => MatchesSearch(row.Record, row.IpAddress, search)).ToArray();
+        return View("Explore", new IpamExplorerViewModel { Subnet = subnet, Rows = pageRows, Page = page, PageSize = pageSize, Total = total, Assigned = summary.AssignedCount, Reserved = summary.ReservedCount, Available = summary.AvailableCount, Conflict = summary.ConflictCount, Unknown = summary.UnknownCount, View = view == "table" ? "table" : "grid", Search = search, Status = status, MonitoringStatuses = monitoringStatuses });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Available(Guid? id, int page = 1, int pageSize = 100, CancellationToken cancellationToken = default) => id is null
+        ? View("AvailableSelect", await ipam.GetSubnetsAsync(cancellationToken))
+        : RedirectToAction(nameof(Explore), new { id, page, pageSize, view = "table", status = IpAssignmentStatus.Available });
+
+    [HttpGet]
+    public async Task<IActionResult> Reservations(CancellationToken cancellationToken)
+    {
+        var records = (await ipam.GetRecordsAsync(cancellationToken)).Where(record => record.AssignmentStatus == IpAssignmentStatus.Reserved)
+            .OrderBy(record => record.ReservedUntilUtc).ThenBy(record => record.IpAddress, StringComparer.OrdinalIgnoreCase).ToArray();
+        return View(records);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> History(string? search, string? action, CancellationToken cancellationToken)
+    {
+        var events = await ipam.GetHistoryAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(search)) events = events.Where(item => item.IpAddress.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || item.Actor?.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) == true || item.Details?.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) == true).ToArray();
+        if (!string.IsNullOrWhiteSpace(action)) events = events.Where(item => string.Equals(item.Action, action, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return View(new IpamHistoryViewModel { Events = events.Take(1000).ToArray(), Search = search, Action = action });
+    }
+
+    [HttpPost]
+    [Authorize(Policy = "CanManageSettings")]
+    public async Task<IActionResult> Allocate(IpamRecord record, CancellationToken cancellationToken)
+    {
+        var action = record.AssignmentStatus switch
+        {
+            IpAssignmentStatus.Reserved => "Reserved",
+            IpAssignmentStatus.Assigned => "Assigned or reservation converted",
+            IpAssignmentStatus.Available => "Released",
+            _ => "Allocation changed"
+        };
+        var result = await ipam.ChangeAllocationAsync(record, action, User.Identity?.Name, cancellationToken);
+        TempData[result.Success ? "Success" : "Error"] = result.Success ? $"{record.IpAddress} was updated." : result.Error;
+        return RedirectToAction(nameof(Explore), new { id = record.SubnetId, page = 1, view = "table" });
     }
 
     [HttpGet]
@@ -71,14 +196,14 @@ public sealed class IpamController(
         var subnets = await ipam.GetSubnetsAsync(cancellationToken);
         return View(new DeviceDiscoveryViewModel
         {
-            RegisteredSubnets = subnets.Select(s => new SubnetChoice(s.Cidr, s.Location ?? s.Building, s.Description)).ToArray(),
+            RegisteredSubnets = subnets.Select(s => new SubnetChoice(s.Cidr, s.Location ?? s.Building, s.Description, s.LocationId, s.BuildingId)).ToArray(),
             SubnetCidr = subnets.FirstOrDefault()?.Cidr,
             LocationChoices = hierarchy.Locations.Where(item => item.Kind != LocationKind.Building)
                 .OrderBy(item => InventoryStructureService.BuildLocationPath(hierarchy.Locations, item.Id), StringComparer.OrdinalIgnoreCase)
                 .Select(item => new HierarchyChoice(item.Id, InventoryStructureService.BuildLocationPath(hierarchy.Locations, item.Id))).ToArray(),
             BuildingChoices = hierarchy.Locations.Where(item => item.Kind == LocationKind.Building)
                 .OrderBy(item => InventoryStructureService.BuildLocationPath(hierarchy.Locations, item.Id), StringComparer.OrdinalIgnoreCase)
-                .Select(item => new HierarchyChoice(item.Id, InventoryStructureService.BuildLocationPath(hierarchy.Locations, item.Id))).ToArray(),
+                .Select(item => new HierarchyChoice(item.Id, InventoryStructureService.BuildLocationPath(hierarchy.Locations, item.Id), GetLocationAncestorIds(hierarchy.Locations, item.ParentLocationId))).ToArray(),
             GroupChoices = hierarchy.Groups.OrderBy(item => InventoryStructureService.BuildGroupPath(hierarchy.Groups, item.Id), StringComparer.OrdinalIgnoreCase)
                 .Select(item => new HierarchyChoice(item.Id, InventoryStructureService.BuildGroupPath(hierarchy.Groups, item.Id))).ToArray()
         });
@@ -194,12 +319,18 @@ public sealed class IpamController(
         var subnet = (await ipam.GetSubnetsAsync(cancellationToken)).FirstOrDefault(item => string.Equals(item.Cidr, request.SubnetCidr, StringComparison.OrdinalIgnoreCase));
         if (subnet is null) return new AddDiscoveredResult { Error = "The selected subnet is no longer registered." };
         var linkedDevice = (await devices.GetAllAsync(cancellationToken)).FirstOrDefault(item => string.Equals(item.IpAddress, ip, StringComparison.OrdinalIgnoreCase));
+        var locationId = linkedDevice?.LocationId ?? request.LocationId ?? subnet.LocationId;
+        var buildingId = linkedDevice?.BuildingId ?? request.BuildingId;
+        if (buildingId is null && (request.LocationId is null || request.LocationId == subnet.LocationId))
+        {
+            buildingId = subnet.BuildingId;
+        }
         var record = new IpamRecord
         {
-            Id = Guid.NewGuid(), IpAddress = ip, SubnetId = subnet.Id, VlanId = request.VlanId ?? subnet.VlanId, VlanName = request.VlanName ?? subnet.VlanName,
+            Id = Guid.Empty, IpAddress = ip, SubnetId = subnet.Id, VlanId = request.VlanId ?? subnet.VlanId, VlanName = request.VlanName ?? subnet.VlanName,
             DeviceId = linkedDevice?.Id, DeviceName = linkedDevice?.Name ?? request.DeviceName?.Trim(), DeviceType = linkedDevice?.Type.ToString() ?? request.DeviceType,
-            LocationId = linkedDevice?.LocationId ?? request.LocationId ?? subnet.LocationId,
-            BuildingId = linkedDevice?.BuildingId ?? request.BuildingId ?? subnet.BuildingId, GroupId = linkedDevice?.GroupId ?? request.GroupId,
+            LocationId = locationId,
+            BuildingId = buildingId, GroupId = linkedDevice?.GroupId ?? request.GroupId,
             SwitchName = request.SwitchName?.Trim(), SwitchIpAddress = request.SwitchIpAddress?.Trim(), SwitchPort = request.SwitchPort?.Trim(),
             MacAddress = request.MacAddress?.Trim(), AssignedTo = request.AssignedTo?.Trim(), Department = request.Department?.Trim(),
             Description = request.Description?.Trim(), AssignmentStatus = request.AssignmentStatus,
@@ -230,6 +361,19 @@ public sealed class IpamController(
         name.Contains("switch", StringComparison.OrdinalIgnoreCase) || name.Contains("sw-", StringComparison.OrdinalIgnoreCase) ? DeviceType.AccessSwitch :
         name.Contains("firewall", StringComparison.OrdinalIgnoreCase) ? DeviceType.Firewall :
         name.Contains("server", StringComparison.OrdinalIgnoreCase) || name.Contains("srv", StringComparison.OrdinalIgnoreCase) ? DeviceType.Server : DeviceType.Other;
+
+    private static IReadOnlyList<Guid> GetLocationAncestorIds(IReadOnlyCollection<ManagedLocation> locations, Guid? parentId)
+    {
+        var byId = locations.ToDictionary(item => item.Id);
+        var ancestors = new List<Guid>();
+        var seen = new HashSet<Guid>();
+        while (parentId is { } id && seen.Add(id) && byId.TryGetValue(id, out var parent))
+        {
+            ancestors.Add(id);
+            parentId = parent.ParentLocationId;
+        }
+        return ancestors;
+    }
 
     private sealed class ByteArrayComparer : IComparer<byte[]>
     {
@@ -329,7 +473,7 @@ public sealed class IpamController(
         var records = await ipam.GetRecordsAsync(cancellationToken);
         if (records.Count > 25_000) return StatusCode(StatusCodes.Status413PayloadTooLarge, "The IPAM export exceeds the 25,000 row limit. Apply a filter or split the export.");
         var csv = new StringBuilder();
-        csv.AppendLine("IpAddress,SubnetCidr,VlanId,VlanName,DeviceId,DeviceName,DeviceType,Location,Building,Group,SwitchName,SwitchIpAddress,SwitchPort,MacAddress,AssignedTo,Department,Description,AssignmentStatus");
+        csv.AppendLine("IpAddress,SubnetCidr,VlanId,VlanName,DeviceId,DeviceName,DeviceType,Location,Building,Group,SwitchName,SwitchIpAddress,SwitchPort,MacAddress,AssignedTo,Department,Description,AssignmentStatus,ReservationNote,ReservedUntilUtc");
         var subnets = (await ipam.GetSubnetsAsync(cancellationToken)).ToDictionary(subnet => subnet.Id);
         foreach (var record in records)
         {
@@ -341,7 +485,8 @@ public sealed class IpamController(
                 record.Location ?? string.Empty, record.Building ?? string.Empty, record.Group ?? string.Empty,
                 record.SwitchName ?? string.Empty, record.SwitchIpAddress ?? string.Empty, record.SwitchPort ?? string.Empty,
                 record.MacAddress ?? string.Empty, record.AssignedTo ?? string.Empty, record.Department ?? string.Empty,
-                record.Description ?? string.Empty, record.AssignmentStatus.ToString()
+                record.Description ?? string.Empty, record.AssignmentStatus.ToString(), record.ReservationNote ?? string.Empty,
+                record.ReservedUntilUtc?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty
             };
             csv.AppendLine(string.Join(',', row.Select(EscapeCsv)));
             if (csv.Length > 20_000_000) return StatusCode(StatusCodes.Status413PayloadTooLarge, "The IPAM export exceeds the 20 MB limit. Apply a filter or split the export.");
@@ -352,7 +497,7 @@ public sealed class IpamController(
     [HttpGet]
     public IActionResult Template()
     {
-        const string template = "IpAddress,SubnetCidr,VlanId,VlanName,DeviceId,DeviceName,DeviceType,Location,Building,Group,SwitchName,SwitchIpAddress,SwitchPort,MacAddress,AssignedTo,Department,Description,AssignmentStatus\r\n";
+        const string template = "IpAddress,SubnetCidr,VlanId,VlanName,DeviceId,DeviceName,DeviceType,Location,Building,Group,SwitchName,SwitchIpAddress,SwitchPort,MacAddress,AssignedTo,Department,Description,AssignmentStatus,ReservationNote,ReservedUntilUtc\r\n";
         return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(template)).ToArray(), "text/csv; charset=utf-8", "ipam-template.csv");
     }
 
@@ -385,6 +530,7 @@ public sealed class IpamController(
     private async Task<IActionResult> SaveRecordAsync(IpamRecordEditViewModel model, bool create, CancellationToken cancellationToken)
     {
         if (create) model.Record.Id = Guid.Empty;
+        model.Record.UpdatedBy = User.Identity?.Name;
         if (string.IsNullOrWhiteSpace(model.Record.IpAddress)) ModelState.AddModelError("Record.IpAddress", "IP address is required.");
         if (!ModelState.IsValid)
         {
@@ -465,6 +611,81 @@ public sealed class IpamController(
     }
 
     private static bool Has(string? value, string term) => value?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool MatchesSearch(IpamRecord? record, string ipAddress, string term) =>
+        ipAddress.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+        Has(record?.DeviceName, term) || Has(record?.DeviceType, term) || Has(record?.AssignedTo, term) ||
+        Has(record?.Department, term) || Has(record?.MacAddress, term) || Has(record?.VlanName, term) ||
+        Has(record?.SwitchName, term) || Has(record?.SwitchPort, term) || Has(record?.Location, term) ||
+        Has(record?.Building, term) || Has(record?.Group, term) || record?.VlanId?.ToString(CultureInfo.InvariantCulture).Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static IpamExplorerRow AddMonitoringStatus(IpamExplorerRow row, IReadOnlyDictionary<Guid, DeviceStatus> statuses) =>
+        row.Record?.DeviceId is { } deviceId && statuses.TryGetValue(deviceId, out var status)
+            ? row with { MonitoringStatus = status }
+            : row;
+
+    private static bool IsInSubnet(string ip, IpamSubnet subnet)
+    {
+        if (!IpamService.TryNormalizeCidr(subnet.Cidr, out var network, out var prefix, out _)) return false;
+        var address = IPAddress.Parse(ip).GetAddressBytes();
+        var networkBytes = IPAddress.Parse(network).GetAddressBytes();
+        if (address.Length != networkBytes.Length) return false;
+        for (var index = 0; index < address.Length; index++)
+        {
+            var bits = prefix - index * 8;
+            var mask = bits >= 8 ? 255 : bits <= 0 ? 0 : 255 << (8 - bits) & 255;
+            if ((address[index] & mask) != (networkBytes[index] & mask)) return false;
+        }
+        return true;
+    }
+
+    private static IpamSubnetSummaryRow BuildSubnetSummary(IpamSubnet subnet, IReadOnlyCollection<IpamRecord> records)
+    {
+        var assigned = records.LongCount(record => record.AssignmentStatus == IpAssignmentStatus.Assigned);
+        var reserved = records.LongCount(record => record.AssignmentStatus == IpAssignmentStatus.Reserved);
+        var conflict = records.LongCount(record => record.AssignmentStatus == IpAssignmentStatus.Conflict);
+        var unknown = records.LongCount(record => record.AssignmentStatus == IpAssignmentStatus.Unknown);
+        long usable = 0;
+        if (IPAddress.TryParse(subnet.NetworkAddress, out var address) && address.AddressFamily == AddressFamily.InterNetwork && subnet.PrefixLength is >= 0 and <= 32)
+        {
+            var count = BigInteger.One << (32 - subnet.PrefixLength);
+            if (subnet.PrefixLength <= 30) count -= 2;
+            usable = (long)count;
+        }
+        var available = Math.Max(0, usable - assigned - reserved - conflict - unknown);
+        return new(subnet, usable, assigned, reserved, available, conflict, unknown);
+    }
+
+    private static IReadOnlyList<IpamExplorerRow> GetAvailablePage(BigInteger start, BigInteger end, IReadOnlyDictionary<string, IpamRecord> records, int page, int pageSize)
+    {
+        var skip = (long)(page - 1) * pageSize;
+        var take = new List<IpamExplorerRow>(pageSize);
+        var blocked = records.Values.Where(record => record.AssignmentStatus != IpAssignmentStatus.Available)
+            .Select(record => IpamAddressMath.ToIpv4Number(record.IpAddress)).Where(value => value >= start && value <= end).Order().ToArray();
+        var cursor = start;
+        foreach (var occupied in blocked.Append(end + 1))
+        {
+            var gapCount = (long)BigInteger.Max(BigInteger.Zero, occupied - cursor);
+            if (skip >= gapCount) { skip -= gapCount; cursor = occupied + 1; continue; }
+            var gapStart = cursor + skip;
+            var remaining = gapCount - skip;
+            skip = 0;
+            var amount = (int)Math.Min(pageSize - take.Count, remaining);
+            for (var index = 0; index < amount; index++)
+            {
+                var ip = IpamAddressMath.FromIpv4Number(gapStart + index);
+                records.TryGetValue(ip, out var existingAvailableRecord);
+                take.Add(new IpamExplorerRow(ip, IpAssignmentStatus.Available, existingAvailableRecord));
+            }
+            if (take.Count == pageSize) break;
+            cursor = occupied + 1;
+        }
+        return take;
+    }
+
+    private static BigInteger IpToNumber(string ip) => IpamAddressMath.ToIpv4Number(ip);
+
+    private static string NumberToIp(BigInteger value) => IpamAddressMath.FromIpv4Number(value);
 
     private static string EscapeCsv(string value)
     {

@@ -24,30 +24,30 @@
 </div>
 
 <section class="ash-kpi-grid" aria-label="Infrastructure summary" data-status-counts>
-    <article class="ash-kpi-card kpi-total">
+    <a class="ash-kpi-card kpi-total dashboard-status-link" asp-controller="Devices" asp-action="Index" aria-label="Show all devices">
         <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="7" rx="1.5"></rect><rect x="4" y="13.5" width="16" height="7" rx="1.5"></rect><path d="M7 7h.01M7 17h.01M11 7h6m-6 10h6"></path></svg></div>
         <div class="ash-kpi-label">Total devices</div>
         <div class="ash-kpi-value" data-inventory-total>@Model.TotalCount</div>
         <div class="ash-kpi-note">@Model.MonitoringEnabledCount monitoring enabled</div>
-    </article>
-    <article class="ash-kpi-card kpi-up">
+    </a>
+    <a class="ash-kpi-card kpi-up dashboard-status-link" asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Up" aria-label="Show up devices">
         <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></div>
         <div class="ash-kpi-label">Devices up</div>
         <div class="ash-kpi-value" data-status-count="Up">@Model.UpCount</div>
         <div class="ash-kpi-note">Responding to ICMP checks</div>
-    </article>
-    <article class="ash-kpi-card kpi-down">
+    </a>
+    <a class="ash-kpi-card kpi-down dashboard-status-link" asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Down" aria-label="Show down devices">
         <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
         <div class="ash-kpi-label">Devices down</div>
         <div class="ash-kpi-value" data-status-count="Down">@Model.DownCount</div>
         <div class="ash-kpi-note">Not responding to ICMP checks</div>
-    </article>
-    <article class="ash-kpi-card kpi-unknown">
+    </a>
+    <a class="ash-kpi-card kpi-unknown dashboard-status-link" asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Unknown" aria-label="Show devices with unknown status">
         <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M9.7 9a2.4 2.4 0 1 1 4.1 1.7c-1 .9-1.8 1.2-1.8 2.8M12 17h.01"></path></svg></div>
         <div class="ash-kpi-label">Unknown</div>
         <div class="ash-kpi-value" data-status-count="Unknown">@Model.UnknownCount</div>
         <div class="ash-kpi-note">Not checked yet or monitoring paused</div>
-    </article>
+    </a>
     <article class="ash-kpi-card kpi-availability">
         <div class="ash-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12h4l2.2-5 4.1 10 2.2-5h4.5"></path></svg></div>
         <div class="ash-kpi-label">7 day availability</div>
@@ -75,9 +75,9 @@
                     <span class="health-segment health-segment-unknown" style="width:@unknownWidth%" data-status-share="Unknown"></span>
                 </div>
                 <div class="health-legend">
-                    <div><span class="legend-swatch up"></span><span>Up</span><strong data-status-count="Up">@Model.UpCount</strong></div>
-                    <div><span class="legend-swatch down"></span><span>Down</span><strong data-status-count="Down">@Model.DownCount</strong></div>
-                    <div><span class="legend-swatch unknown"></span><span>Unknown</span><strong data-status-count="Unknown">@Model.UnknownCount</strong></div>
+                    <a asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Up"><span class="legend-swatch up"></span><span>Up</span><strong data-status-count="Up">@Model.UpCount</strong></a>
+                    <a asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Down"><span class="legend-swatch down"></span><span>Down</span><strong data-status-count="Down">@Model.DownCount</strong></a>
+                    <a asp-controller="Devices" asp-action="Index" asp-route-status="@DeviceStatus.Unknown"><span class="legend-swatch unknown"></span><span>Unknown</span><strong data-status-count="Unknown">@Model.UnknownCount</strong></a>
                 </div>
                 <p class="dashboard-health-note">
                     @if (Model.DownCount > 0)

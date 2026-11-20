@@ -69,7 +69,11 @@
                                 .OrderByDescending(item => item.AttemptedUtc).FirstOrDefault();
                             var requested = record.RequestedChannels.Contains(channel);
                             <td>
-                                @if (delivery is not null)
+                                @if (record.IsSuppressed)
+                                {
+                                    <span>Suppressed (recovered within 1 minute)</span>
+                                }
+                                else if (delivery is not null)
                                 {
                                     <span class="device-status @(delivery.Succeeded ? "status-up" : "status-down")"><span class="status-dot"></span>@(delivery.Succeeded ? "Sent" : "Failed")</span>
                                     @if (!delivery.Succeeded && !delivery.DeadLettered && delivery.NextAttemptUtc is { } retryAt)

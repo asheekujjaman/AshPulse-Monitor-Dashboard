@@ -10,6 +10,8 @@ public interface INotificationRepository
 
     Task<bool> EnqueueAsync(NotificationRecord record, CancellationToken cancellationToken = default);
 
+    Task<bool> EnqueueRecoveryAsync(NotificationRecord record, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<NotificationRecord>> GetPendingAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<NotificationRecord>> GetRecentAsync(int limit = 100, CancellationToken cancellationToken = default);

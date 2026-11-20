@@ -106,6 +106,9 @@ public sealed class Phase3MapAndIpamTests
         var invalidCidr = await fixture.IpamService.SaveSubnetAsync(new IpamSubnet { Cidr = "192.0.2.0/33" });
         Assert.IsFalse(invalidCidr.Success);
 
+        var moveSubnet = await fixture.IpamService.SaveSubnetAsync(new IpamSubnet { Id = subnet.Id, Cidr = "192.0.3.0/24" });
+        Assert.IsFalse(moveSubnet.Success, "A subnet cannot be moved away from addresses already assigned to it.");
+
         var reopenedRepository = new JsonIpamRepository(new FileJsonDocumentStore(fixture.DataDirectory));
         Assert.AreEqual("192.0.2.0/24", (await reopenedRepository.GetSubnetAsync(subnet.Id))?.Cidr);
         Assert.AreEqual("192.0.2.7", (await reopenedRepository.GetRecordAsync(record.Id))?.IpAddress);
@@ -196,5 +199,86 @@ public sealed class Phase3MapAndIpamTests
         Assert.IsNull(retained.DeviceId);
         Assert.AreEqual("203.0.113.41", retained.IpAddress);
         Assert.AreEqual("Live device renamed", retained.DeviceName);
+    }
+
+    [TestMethod]
+    public async Task IpamAllocationTransitionsAreAtomicAndPreserveHistory()
+    {
+        using var fixture = await DeviceServiceFixture.CreateAsync();
+        var subnet = new IpamSubnet { Cidr = "192.0.2.0/29" };
+        Assert.IsTrue((await fixture.IpamService.SaveSubnetAsync(subnet)).Success);
+
+        var reserved = new IpamRecord
+        {
+            IpAddress = "192.0.2.2", SubnetId = subnet.Id, AssignmentStatus = IpAssignmentStatus.Reserved,
+            AssignedTo = "Future owner", ReservationNote = "Keep for onboarding"
+        };
+        Assert.IsTrue((await fixture.IpamService.ChangeAllocationAsync(reserved, "Reserved", "admin")).Success);
+
+        var wrongOwner = new IpamRecord { IpAddress = "192.0.2.2", SubnetId = subnet.Id, AssignmentStatus = IpAssignmentStatus.Assigned, AssignedTo = "Other user" };
+        Assert.IsFalse((await fixture.IpamService.ChangeAllocationAsync(wrongOwner, "Assigned", "admin")).Success);
+
+        var converted = new IpamRecord { IpAddress = "192.0.2.2", SubnetId = subnet.Id, AssignmentStatus = IpAssignmentStatus.Assigned, AssignedTo = "Future owner" };
+        Assert.IsTrue((await fixture.IpamService.ChangeAllocationAsync(converted, "Converted", "admin")).Success);
+
+        var released = new IpamRecord { IpAddress = "192.0.2.2", SubnetId = subnet.Id, AssignmentStatus = IpAssignmentStatus.Available };
+        Assert.IsTrue((await fixture.IpamService.ChangeAllocationAsync(released, "Released", "admin")).Success);
+
+        var stored = await fixture.IpamRepository.GetRecordAsync(reserved.Id);
+        Assert.IsNotNull(stored);
+        Assert.AreEqual(IpAssignmentStatus.Available, stored.AssignmentStatus);
+        Assert.IsNull(stored.AssignedTo);
+        var history = await fixture.IpamService.GetHistoryAsync();
+        Assert.HasCount(3, history);
+        Assert.IsTrue(history.All(item => item.RecordId == reserved.Id && item.Actor == "admin"));
+        Assert.IsTrue(history.Any(item => item.Action == "Reserved" && item.NewStatus == IpAssignmentStatus.Reserved));
+    }
+
+    [TestMethod]
+    public async Task IpamConcurrentAllocationsForOneAddressAllowOnlyOneWinner()
+    {
+        using var fixture = await DeviceServiceFixture.CreateAsync();
+        var subnet = new IpamSubnet { Cidr = "198.51.100.0/29" };
+        Assert.IsTrue((await fixture.IpamService.SaveSubnetAsync(subnet)).Success);
+        var attempts = Enumerable.Range(0, 2).Select(index => fixture.IpamService.ChangeAllocationAsync(new IpamRecord
+        {
+            IpAddress = "198.51.100.3", SubnetId = subnet.Id, AssignmentStatus = IpAssignmentStatus.Assigned, AssignedTo = $"User {index}"
+        }, "Assigned", "admin"));
+
+        var results = await Task.WhenAll(attempts);
+        Assert.AreEqual(1, results.Count(result => result.Success));
+        Assert.AreEqual(1, results.Count(result => !result.Success));
+        Assert.HasCount(1, (await fixture.IpamRepository.GetRecordsAsync()).Where(record => record.IpAddress == "198.51.100.3"));
+        Assert.HasCount(1, await fixture.IpamService.GetHistoryAsync());
+    }
+
+    [TestMethod]
+    public void IpamIpv4UsableRangeHandlesPointToPointAndSingleAddressSubnets()
+    {
+        Assert.IsTrue(IpamService.TryNormalizeCidr("192.0.2.0/31", out var network31, out var prefix31, out _));
+        var subnet31 = new IpamSubnet { NetworkAddress = network31, PrefixLength = prefix31 };
+        Assert.IsTrue(IpamAddressMath.TryGetIpv4UsableRange(subnet31, out var start31, out var end31));
+        Assert.AreEqual("192.0.2.0", IpamAddressMath.FromIpv4Number(start31));
+        Assert.AreEqual("192.0.2.1", IpamAddressMath.FromIpv4Number(end31));
+
+        Assert.IsTrue(IpamService.TryNormalizeCidr("192.0.2.9/32", out var network32, out var prefix32, out _));
+        var subnet32 = new IpamSubnet { NetworkAddress = network32, PrefixLength = prefix32 };
+        Assert.IsTrue(IpamAddressMath.TryGetIpv4UsableRange(subnet32, out var start32, out var end32));
+        Assert.AreEqual(start32, end32);
+        Assert.AreEqual("192.0.2.9", IpamAddressMath.FromIpv4Number(start32));
+    }
+
+    [TestMethod]
+    public async Task IpamOldJsonDocumentsDefaultHistoryWithoutLosingExistingData()
+    {
+        using var fixture = await DeviceServiceFixture.CreateAsync();
+        var legacy = new IpamRecord { Id = Guid.NewGuid(), IpAddress = "203.0.113.25", AssignmentStatus = IpAssignmentStatus.Assigned };
+        await File.WriteAllTextAsync(Path.Combine(fixture.DataDirectory, "ipam.json"),
+            System.Text.Json.JsonSerializer.Serialize(new IpamDocument { Records = [legacy] }, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+        var repository = new JsonIpamRepository(new FileJsonDocumentStore(fixture.DataDirectory));
+
+        Assert.IsEmpty(await repository.GetHistoryAsync());
+        Assert.AreEqual(legacy.Id, (await repository.GetRecordAsync(legacy.Id))?.Id);
+        Assert.AreEqual("203.0.113.25", (await repository.GetRecordAsync(legacy.Id))?.IpAddress);
     }
 }

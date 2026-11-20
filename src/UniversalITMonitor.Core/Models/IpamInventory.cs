@@ -49,6 +49,12 @@ public sealed class IpamRecord
 
     public string? AssignedTo { get; set; }
 
+    public string? ReservationNote { get; set; }
+
+    public DateTimeOffset? ReservedUntilUtc { get; set; }
+
+    public string? UpdatedBy { get; set; }
+
     public string? Department { get; set; }
 
     public string? Description { get; set; }
@@ -94,4 +100,27 @@ public sealed class IpamDocument
     public List<IpamRecord> Records { get; set; } = [];
 
     public List<IpamSubnet> Subnets { get; set; } = [];
+
+    public List<IpamHistoryEvent> History { get; set; } = [];
+}
+
+public sealed class IpamHistoryEvent
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid RecordId { get; set; }
+
+    public string IpAddress { get; set; } = string.Empty;
+
+    public string Action { get; set; } = string.Empty;
+
+    public IpAssignmentStatus? PreviousStatus { get; set; }
+
+    public IpAssignmentStatus? NewStatus { get; set; }
+
+    public string? Actor { get; set; }
+
+    public string? Details { get; set; }
+
+    public DateTimeOffset OccurredUtc { get; set; } = DateTimeOffset.UtcNow;
 }

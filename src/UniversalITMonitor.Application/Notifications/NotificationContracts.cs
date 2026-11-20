@@ -38,7 +38,11 @@ public sealed record NotificationSendResult(bool Success, string Message);
 
 public sealed record NotificationMessage(string Subject, string Body);
 
-public sealed record NotificationTransportResult(bool Succeeded, string? Detail = null, bool IsTransient = false);
+public sealed record NotificationTransportResult(
+    bool Succeeded,
+    string? Detail = null,
+    bool IsTransient = false,
+    TimeSpan? RetryAfter = null);
 
 public interface INotificationSecretProtector
 {

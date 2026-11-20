@@ -40,7 +40,7 @@
     <div id="map-message" class="map-message" role="status" aria-live="polite"></div>
     <div class="map-workbench">
         <aside class="map-device-library" aria-label="Device library">
-            <div class="map-side-heading"><h2>Devices</h2><span id="map-device-count">0</span></div>
+            <div class="map-side-heading"><h2>Devices by location</h2><span id="map-device-count">0</span></div>
             <input id="map-device-search" type="search" class="form-control" placeholder="Search inventory" aria-label="Search devices" />
             <label class="map-icon-select">Icon for new devices
                 <select id="map-icon-kind" class="form-select" disabled="@(!canManage)">
@@ -51,7 +51,7 @@
                     }
                 </select>
             </label>
-                <p class="map-library-hint">Choose an icon, then drag a device onto the canvas or use Add. The icon stays linked to this inventory record.</p>
+                <p class="map-library-hint">Devices are grouped by location and sub-location. Expand a site to find its devices; drag one onto the canvas or use Add.</p>
             <div id="map-device-list" class="map-device-list"></div>
             <details class="map-library-section">
                 <summary>Groups and sites</summary>
@@ -88,6 +88,7 @@
                 </div>
                 <span id="map-hint">Choose a tool, then arrange or draw on the canvas.</span>
                 <div class="map-zoom-tools">
+                    <span class="map-workspace-label">Workspace 3200 × 2000</span>
                     <button id="map-lock" type="button" aria-pressed="false">Lock map</button>
                     <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
                     <span id="map-zoom-value">100%</span>
@@ -118,14 +119,15 @@
                     <div id="popup-devices-list" class="map-popup-devices-list"></div>
                 </div>
             </div>
-            <svg id="map-canvas" viewBox="0 0 1600 1000" role="img" aria-label="Interactive network topology canvas">
+            <svg id="map-canvas" viewBox="0 0 3200 2000" role="img" aria-label="Interactive network topology canvas">
                 <defs>
                     <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" fill="none" stroke="#e2e8f0" stroke-width="0.8" /></pattern>
                     <filter id="map-shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity=".15" /></filter>
                     <filter id="badge-glow-up" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#16a34a" flood-opacity=".4" /></filter>
                     <filter id="badge-glow-down" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#dc2626" flood-opacity=".45" /></filter>
                 </defs>
-                <rect class="map-grid-background" x="-4000" y="-4000" width="12000" height="10000" fill="url(#map-grid)" />
+                <rect class="map-grid-background" x="0" y="0" width="3200" height="2000" fill="url(#map-grid)" />
+                <rect class="map-workspace-frame" x="0" y="0" width="3200" height="2000" />
                 <g id="map-annotations"></g>
                 <g id="map-connections"></g>
                 <g id="map-nodes"></g>

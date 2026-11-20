@@ -1,0 +1,8 @@
+@model IpamHistoryViewModel
+@{ ViewData["Title"] = "IP history"; }
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>IP history</h1><p class="page-subtitle">Append-only audit events for IPAM changes and allocation transitions.</p></div></div>
+<nav class="ipam-internal-nav" aria-label="IPAM navigation"><a asp-action="Index">Overview</a><a asp-action="Explore">IP Explorer</a><a asp-action="Available">Available IPs</a><a asp-action="Reservations">Reservations</a><a asp-action="Subnets">Subnet management</a><a class="active" asp-action="History">IP history</a></nav>
+<section class="panel-card"><form method="get" class="ipam-explorer-filters"><label>Search IP, actor or note<input type="search" name="search" value="@Model.Search" /></label><label>Action<input type="search" name="action" value="@Model.Action" placeholder="Assigned, Reserved, Released" /></label><button class="app-primary-button" type="submit">Filter</button></form>
+@if (Model.Events.Count == 0) { <div class="empty-state"><h3>No history events</h3><p>New IPAM changes will be recorded here.</p></div> }
+else { <div class="table-responsive"><table class="device-table"><thead><tr><th>Time (UTC)</th><th>IP address</th><th>Action</th><th>State</th><th>Actor</th><th>Details</th></tr></thead><tbody>@foreach (var item in Model.Events) { <tr><td>@item.OccurredUtc.ToString("yyyy-MM-dd HH:mm:ss")</td><td><strong>@item.IpAddress</strong></td><td>@item.Action</td><td>@(item.PreviousStatus?.ToString() ?? "—") → @(item.NewStatus?.ToString() ?? "—")</td><td>@item.Actor</td><td>@item.Details</td></tr> }</tbody></table></div> }
+</section>

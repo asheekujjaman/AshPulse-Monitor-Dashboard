@@ -8,7 +8,8 @@
         ['Location', 'Location name', false], ['Building', 'Building name', false], ['Group', 'Group name', false],
         ['SwitchName', 'Switch name', false], ['SwitchIpAddress', 'Switch IP', false], ['SwitchPort', 'Switch port', false],
         ['MacAddress', 'MAC address', false], ['AssignedTo', 'Assigned to', false], ['Department', 'Department', false],
-        ['Description', 'Description', false], ['AssignmentStatus', 'Assignment status', false]
+        ['Description', 'Description', false], ['AssignmentStatus', 'Assignment status', false],
+        ['ReservationNote', 'Reservation note', false], ['ReservedUntilUtc', 'Reserved until (ISO 8601)', false]
     ];
     let csvText = '';
     let mappings = {};

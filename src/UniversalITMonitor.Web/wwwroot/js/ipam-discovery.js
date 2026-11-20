@@ -5,6 +5,9 @@
     const form = $('ipam-discovery-scan');
     const scanButton = $('ipam-discovery-scan-button');
     const subnet = $('ipam-discovery-subnet');
+    const location = $('ipam-discovery-location');
+    const building = $('ipam-discovery-building');
+    const subnetBuildingPlaceholder = building.options[0];
     const timeout = $('ipam-discovery-timeout');
     const results = $('ipam-discovery-results');
     const rows = $('ipam-discovery-rows');
@@ -59,9 +62,9 @@
             const status = document.createElement('span'); status.className = `device-status ${item.alreadyInInventory ? 'status-unknown' : 'status-up'}`; status.textContent = item.alreadyInInventory ? 'IN IPAM' : 'NEW'; row.children[5].append(status);
             const actionCell = row.children[6];
             if (item.alreadyInInventory && item.existingIpamRecordId) {
-                const update = document.createElement('a'); update.className = 'app-secondary-button'; update.textContent = 'Update';
+                const update = document.createElement('a'); update.className = 'app-secondary-button'; update.textContent = 'Open record';
                 const editUrl = new URL(root.dataset.editUrl, window.location.origin); editUrl.searchParams.set('id', item.existingIpamRecordId); update.href = editUrl.pathname + editUrl.search;
-                update.setAttribute('aria-label', `Update IPAM record for ${item.ipAddress}`); actionCell.append(update);
+                update.setAttribute('aria-label', `Open existing IPAM record for ${item.ipAddress}`); actionCell.append(update);
             } else if (!item.alreadyInInventory) {
                 const add = document.createElement('button'); add.type = 'button'; add.className = 'app-secondary-button ipam-discovery-add-one'; add.textContent = 'Add';
                 add.dataset.addIp = item.ipAddress; add.setAttribute('aria-label', `Add ${item.ipAddress} to IPAM`); actionCell.append(add);
@@ -111,6 +114,25 @@
         discovered.filter(item => !item.alreadyInInventory).forEach(item => selectAll.checked ? selected.add(item.ipAddress) : selected.delete(item.ipAddress));
         render();
     });
+    const filterBuildings = () => {
+        const selectedLocation = location.value;
+        const selectedSubnet = subnet.selectedOptions[0];
+        const subnetLocation = selectedSubnet?.dataset.locationId || '';
+        subnetBuildingPlaceholder.textContent = !selectedLocation || selectedLocation === subnetLocation
+            ? 'Use subnet building'
+            : 'No building (optional)';
+        for (const option of building.options) {
+            if (!option.value) continue;
+            const ancestors = (option.dataset.locationAncestors || '').split(',').filter(Boolean);
+            const eligible = !selectedLocation || ancestors.includes(selectedLocation);
+            option.hidden = !eligible;
+            option.disabled = !eligible;
+            if (!eligible && option.selected) building.value = '';
+        }
+    };
+    location.addEventListener('change', filterBuildings);
+    subnet.addEventListener('change', filterBuildings);
+    filterBuildings();
     addButton.addEventListener('click', async () => {
         const picks = discovered.filter(item => selected.has(item.ipAddress));
         if (!picks.length) return;
@@ -137,7 +159,10 @@
             const data = singleAddIp
                 ? await request(root.dataset.addSingleUrl, { ...details, ipAddress: singleAddIp })
                 : await request(root.dataset.addUrl, { ...details, devices: picks.map(item => ({ ipAddress: item.ipAddress, name: rows.querySelector(`[data-name-ip="${CSS.escape(item.ipAddress)}"]`)?.value.trim() || `Device-${item.ipAddress}`, deviceType: item.suggestedType })) });
-            showMessage(`${data.message || 'IPAM records saved.'}${data.error ? ` ${data.error}` : ''}`, !data.success || !!data.error);
+            const resultMessage = data.success
+                ? data.message || 'IPAM records saved.'
+                : data.error || data.message || 'Could not save IPAM records.';
+            showMessage(`${resultMessage}${data.success && data.error ? ` ${data.error}` : ''}`, !data.success || !!data.error);
             if (data.addedIpAddresses?.length) {
                 const added = new Map((data.addedRecords || []).map(item => [item.ipAddress, item.recordId]));
                 discovered = discovered.map(item => added.has(item.ipAddress) ? { ...item, alreadyInInventory: true, existingIpamRecordId: added.get(item.ipAddress) } : item);

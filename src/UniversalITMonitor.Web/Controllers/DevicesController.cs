@@ -221,7 +221,7 @@ public sealed class DevicesController(
         {
             var subnets = await ipam.GetSubnetsAsync(cancellationToken);
             model.RegisteredSubnets = subnets
-                .Select(s => new SubnetChoice(s.Cidr, s.Location ?? s.Building, s.Description))
+                .Select(s => new SubnetChoice(s.Cidr, s.Location ?? s.Building, s.Description, s.LocationId, s.BuildingId))
                 .ToArray();
             if (model.RegisteredSubnets.Count > 0)
             {

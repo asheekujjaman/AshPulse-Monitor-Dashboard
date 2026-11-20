@@ -34,10 +34,56 @@ public sealed class JsonNotificationRepository(IJsonDocumentStore documents) : I
             },
             cancellationToken);
 
+    public Task<bool> EnqueueRecoveryAsync(NotificationRecord record, CancellationToken cancellationToken = default) =>
+        documents.UpdateAsync<NotificationHistoryDocument, bool>(
+            "notification-history.json",
+            static () => new NotificationHistoryDocument(),
+            document =>
+            {
+                if (document.Records.Any(existing => existing.Id == record.Id)) return (document, false);
+
+                var previousDown = document.Records
+                    .Where(existing => existing.Kind == NotificationRecordKind.DeviceTransition &&
+                        existing.DeviceId == record.DeviceId && existing.Status == DeviceStatus.Down &&
+                        existing.OccurredUtc <= record.OccurredUtc)
+                    .OrderByDescending(existing => existing.OccurredUtc)
+                    .FirstOrDefault();
+
+                if (previousDown is not null)
+                {
+                    if (previousDown.IsSuppressed) return (document, false);
+                    if (previousDown.RequestedChannels.Count == 0) return (document, false);
+
+                    if (previousDown.NotBeforeUtc is { } dueUtc && record.OccurredUtc < dueUtc &&
+                        previousDown.Deliveries.Count == 0)
+                    {
+                        previousDown.IsSuppressed = true;
+                        previousDown.IsComplete = true;
+                        TrimCompletedRecords(document);
+                        return (document, false);
+                    }
+
+                    record.DependsOnRecordId = previousDown.Id;
+                }
+
+                record.IsComplete = record.RequestedChannels.Count == 0;
+                document.Records.Add(record);
+                TrimCompletedRecords(document);
+                return (document, true);
+            },
+            cancellationToken);
+
     public async Task<IReadOnlyList<NotificationRecord>> GetPendingAsync(CancellationToken cancellationToken = default)
     {
         var document = await documents.ReadAsync("notification-history.json", static () => new NotificationHistoryDocument(), cancellationToken);
-        return document.Records.Where(record => !record.IsComplete).OrderBy(record => record.OccurredUtc).ToArray();
+        var completedIds = document.Records.Where(record => record.IsComplete).Select(record => record.Id).ToHashSet();
+        var existingIds = document.Records.Select(record => record.Id).ToHashSet();
+        return document.Records
+            .Where(record => !record.IsComplete &&
+                (record.DependsOnRecordId is null || !existingIds.Contains(record.DependsOnRecordId.Value) ||
+                    completedIds.Contains(record.DependsOnRecordId.Value)))
+            .OrderBy(record => record.OccurredUtc)
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<NotificationRecord>> GetRecentAsync(int limit = 100, CancellationToken cancellationToken = default)

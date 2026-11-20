@@ -1,0 +1,8 @@
+@model IReadOnlyList<UniversalITMonitor.Core.Models.IpamRecord>
+@{ ViewData["Title"] = "IP reservations"; }
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>Reservations</h1><p class="page-subtitle">Reserved addresses, owners, notes, and expiry dates.</p></div></div>
+<nav class="ipam-internal-nav" aria-label="IPAM navigation"><a asp-action="Index">Overview</a><a asp-action="Explore">IP Explorer</a><a asp-action="Available">Available IPs</a><a class="active" asp-action="Reservations">Reservations</a><a asp-action="Subnets">Subnet management</a><a asp-action="History">IP history</a></nav>
+<section class="panel-card">
+@if (Model.Count == 0) { <div class="empty-state"><h3>No reservations</h3><p>Choose a subnet in IP Explorer to reserve an available address.</p><a class="app-primary-link" asp-action="Explore">Open IP Explorer</a></div> }
+else { <div class="table-responsive"><table class="device-table"><thead><tr><th>IP address</th><th>Subnet</th><th>Reserved for</th><th>Note</th><th>Expires (UTC)</th><th>Actions</th></tr></thead><tbody>@foreach (var record in Model) { <tr><td><strong>@record.IpAddress</strong></td><td>@record.SubnetId</td><td>@record.AssignedTo</td><td>@record.ReservationNote</td><td>@record.ReservedUntilUtc?.ToString("yyyy-MM-dd HH:mm")</td><td><a class="app-secondary-button" asp-action="Edit" asp-route-id="@record.Id">Edit</a><a class="app-secondary-button" asp-action="History" asp-route-search="@record.IpAddress">History</a></td></tr> }</tbody></table></div> }
+</section>

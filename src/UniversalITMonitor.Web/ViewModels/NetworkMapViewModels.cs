@@ -41,8 +41,10 @@ public sealed class MapDeviceData
     public DateTimeOffset? CurrentStateSinceUtc { get; init; }
     public bool MonitoringEnabled { get; init; }
     public string? Location { get; init; }
+    public string? Building { get; init; }
     public string? Group { get; init; }
     public Guid? LocationId { get; init; }
+    public Guid? BuildingId { get; init; }
     public Guid? GroupId { get; init; }
     public string? DetailsUrl { get; init; }
     public string? LocationUrl { get; init; }

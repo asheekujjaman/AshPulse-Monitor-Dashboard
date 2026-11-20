@@ -1,0 +1,47 @@
+@model IpamExplorerViewModel
+@using UniversalITMonitor.Core.Models
+@{
+    ViewData["Title"] = "IP Explorer";
+    var canManage = User.IsInRole(SystemRoles.Administrator);
+    var pageCount = Math.Max(1, (int)Math.Ceiling((double)Model.Total / Model.PageSize));
+}
+<div class="page-heading"><div><div class="eyebrow">ADDRESS INVENTORY</div><h1>IP Explorer</h1><p class="page-subtitle">@Model.Subnet.Cidr · @Model.Total.ToString("N0") @(Model.IsIpv6 ? "known records (IPv6 is sparse)" : "usable addresses")</p></div><div class="heading-actions"><a class="app-secondary-button" asp-action="Index">Overview</a><a class="app-secondary-button" asp-action="Subnets">Subnets</a></div></div>
+<nav class="ipam-internal-nav" aria-label="IPAM navigation"><a asp-action="Index">Overview</a><a class="active" asp-action="Explore">IP Explorer</a><a asp-action="Available" asp-route-id="@Model.Subnet.Id">Available IPs</a><a asp-action="Reservations">Reservations</a><a asp-action="Subnets">Subnet management</a><a asp-action="History">IP history</a></nav>
+@if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
+<section class="ipam-explorer-stats"><span><b>@Model.Assigned.ToString("N0")</b>Assigned</span><span><b>@Model.Reserved.ToString("N0")</b>Reserved</span><span><b>@Model.Available.ToString("N0")</b>Available</span><span><b>@Model.Conflict.ToString("N0")</b>Conflict</span><span><b>@Model.Unknown.ToString("N0")</b>Unknown</span></section>
+<div class="ipam-status-legend" aria-label="IP assignment status color legend">
+    <span><i class="legend-assigned" aria-hidden="true"></i><strong>Assigned</strong><small>In use</small></span>
+    <span><i class="legend-available" aria-hidden="true"></i><strong>Available</strong><small>Free IP</small></span>
+    <span><i class="legend-reserved" aria-hidden="true"></i><strong>Reserved</strong><small>Held for use</small></span>
+    <span><i class="legend-conflict" aria-hidden="true"></i><strong>Conflict</strong><small>Needs review</small></span>
+    <span><i class="legend-unknown" aria-hidden="true"></i><strong>Unknown</strong><small>Status not known</small></span>
+</div>
+<section class="panel-card">
+    <form method="get" asp-action="Explore" class="ipam-explorer-filters">
+        <input type="hidden" name="id" value="@Model.Subnet.Id" />
+        <label>Search<input type="search" name="search" value="@Model.Search" placeholder="IP or device name" /></label>
+        <label>Status<select name="status"><option value="">All addresses</option>@foreach (var status in Enum.GetValues<IpAssignmentStatus>()) { <option value="@status" selected="@(Model.Status == status)">@status</option> }</select></label>
+        <label>Rows<select name="pageSize"><option value="100" selected="@(Model.PageSize == 100)">100</option><option value="200" selected="@(Model.PageSize == 200)">200</option><option value="500" selected="@(Model.PageSize == 500)">500</option></select></label>
+        <label>View<select name="view"><option value="grid" selected="@(Model.View == "grid")">Grid</option><option value="table" selected="@(Model.View == "table")">Table</option></select></label>
+        <button class="app-primary-button" type="submit">Apply</button>
+    </form>
+    @if (Model.IsIpv6) { <p class="form-note">IPv6 prefixes are never expanded. This view lists registered addresses only.</p> }
+    @if (Model.Rows.Count == 0) { <div class="empty-state"><h3>No addresses match</h3><p>Try another status or search term.</p></div> }
+    else if (Model.View == "grid") {
+        <div class="ipam-address-grid">
+        @foreach (var row in Model.Rows) {
+            <details class="ipam-address-tile status-@row.Status.ToString().ToLowerInvariant()"><summary><span class="ipam-address-state">@row.Status</span><strong>@row.IpAddress</strong><small>@(row.Record?.DeviceName ?? "No record") · Monitor: @(row.MonitoringStatus?.ToString() ?? "—")</small></summary>
+                @if (row.Record is not null) { <p>@row.Record.AssignedTo @row.Record.Department</p><a class="app-secondary-button" asp-action="Edit" asp-route-id="@row.Record.Id">Record details</a><a class="app-secondary-button" asp-action="History" asp-route-search="@row.IpAddress">History</a> }
+                @if (canManage) { <partial name="_AllocationForm" model="new IpamAllocationFormModel { IpAddress = row.IpAddress, SubnetId = Model.Subnet.Id, CurrentStatus = row.Status }" /> }
+            </details>
+        }
+        </div>
+    }
+    else {
+        <div class="table-responsive"><table class="device-table ipam-explorer-table"><thead><tr><th>IP address</th><th>Assignment</th><th>Monitoring</th><th>Assigned to</th><th>Device</th><th>Department</th><th>MAC</th><th>Actions</th></tr></thead><tbody>
+        @foreach (var row in Model.Rows) { <tr><td><strong class="copyable-ip" data-copy-ip="@row.IpAddress">@row.IpAddress</strong></td><td><span class="ipam-assignment assignment-@row.Status.ToString().ToLowerInvariant()">@row.Status</span></td><td>@(row.MonitoringStatus?.ToString() ?? "Not monitored")</td><td>@row.Record?.AssignedTo</td><td>@row.Record?.DeviceName<small>@row.Record?.DeviceType</small></td><td>@row.Record?.Department</td><td>@row.Record?.MacAddress</td><td>@if (row.Record is not null) { <a class="app-secondary-button" asp-action="Edit" asp-route-id="@row.Record.Id">Details</a><a class="app-secondary-button" asp-action="History" asp-route-search="@row.IpAddress">History</a> } @if (canManage) { <details><summary>Allocation</summary><partial name="_AllocationForm" model="new IpamAllocationFormModel { IpAddress = row.IpAddress, SubnetId = Model.Subnet.Id, CurrentStatus = row.Status, AssignedTo = row.Record?.AssignedTo, Note = row.Record?.ReservationNote }" /></details> }</td></tr> }
+        </tbody></table></div>
+    }
+    <div class="ipam-pagination"><span>Page @Model.Page of @pageCount · @Model.Total.ToString("N0") addresses</span><div>@if (Model.Page > 1) { <a class="app-secondary-button" asp-action="Explore" asp-route-id="@Model.Subnet.Id" asp-route-page="@(Model.Page - 1)" asp-route-pageSize="@Model.PageSize" asp-route-view="@Model.View" asp-route-search="@Model.Search" asp-route-status="@Model.Status">Previous</a> } @if (Model.Page < pageCount) { <a class="app-secondary-button" asp-action="Explore" asp-route-id="@Model.Subnet.Id" asp-route-page="@(Model.Page + 1)" asp-route-pageSize="@Model.PageSize" asp-route-view="@Model.View" asp-route-search="@Model.Search" asp-route-status="@Model.Status">Next</a> }</div></div>
+</section>

@@ -26,6 +26,8 @@
         <label asp-for="Record.SwitchPort">Switch port<input asp-for="Record.SwitchPort" maxlength="80" class="form-control" placeholder="Gi1/0/24" /></label>
         <label asp-for="Record.MacAddress">MAC address<input asp-for="Record.MacAddress" maxlength="32" class="form-control" placeholder="00:11:22:33:44:55" /></label>
         <label asp-for="Record.AssignedTo">Assigned to<input asp-for="Record.AssignedTo" maxlength="160" class="form-control" /></label>
+        <label asp-for="Record.ReservationNote">Reservation note<input asp-for="Record.ReservationNote" maxlength="300" class="form-control" /></label>
+        <label asp-for="Record.ReservedUntilUtc">Reserved until (UTC)<input asp-for="Record.ReservedUntilUtc" type="datetime-local" class="form-control" /></label>
         <label asp-for="Record.Department">Department<input asp-for="Record.Department" maxlength="120" class="form-control" /></label>
         <label asp-for="Record.Description" class="ipam-description">Description<textarea asp-for="Record.Description" maxlength="500" rows="3" class="form-control"></textarea></label>
     </div>

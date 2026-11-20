@@ -10,8 +10,8 @@ public sealed class NetworkMapService(
     IDeviceRepository devices,
     IInventoryStructureRepository structure) : INetworkMapService
 {
-    private const double CanvasWidth = 1600;
-    private const double CanvasHeight = 1000;
+    private const double CanvasWidth = 3200;
+    private const double CanvasHeight = 2000;
     private static readonly JsonSerializerOptions ImportOptions = new()
     {
         PropertyNameCaseInsensitive = true,

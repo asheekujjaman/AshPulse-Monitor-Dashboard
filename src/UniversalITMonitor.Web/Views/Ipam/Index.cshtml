@@ -24,6 +24,28 @@
     </div>
 </div>
 
+<nav class="ipam-internal-nav" aria-label="IPAM navigation">
+    <a class="active" asp-action="Index">Overview</a><a asp-action="Explore">IP Explorer</a><a asp-action="Available">Available IPs</a><a asp-action="Reservations">Reservations</a><a asp-action="Subnets">Subnet management</a><a asp-action="History">IP history</a>
+</nav>
+
+<section class="ipam-summary-grid" aria-label="IPAM overview">
+    <article><span>Subnets</span><strong>@Model.Subnets.Count</strong></article>
+    <article><span>Usable IPv4 addresses</span><strong>@Model.SubnetSummaries.Sum(item => item.UsableCount).ToString("N0")</strong></article>
+    <article><span>Assigned</span><strong>@Model.TotalAssigned.ToString("N0")</strong></article>
+    <article><span>Reserved</span><strong>@Model.TotalReserved.ToString("N0")</strong></article>
+    <article><span>Available</span><strong>@Model.SubnetSummaries.Sum(item => item.AvailableCount).ToString("N0")</strong></article>
+    <article><span>Conflicts</span><strong>@Model.TotalConflict.ToString("N0")</strong></article>
+    <article><span>Unknown</span><strong>@Model.TotalUnknown.ToString("N0")</strong></article>
+</section>
+
+<section class="panel-card ipam-subnet-summary">
+    <div class="panel-heading"><div><h2>Subnet utilization</h2><p>IPv6 prefixes stay sparse and are excluded from address-capacity percentages.</p></div></div>
+    @if (Model.SubnetSummaries.Count == 0) { <div class="empty-state"><p>Register a subnet to start exploring addresses.</p></div> }
+    else { <div class="table-responsive"><table class="device-table"><thead><tr><th>Subnet</th><th>Assigned</th><th>Reserved</th><th>Available</th><th>Utilization</th><th></th></tr></thead><tbody>
+        @foreach (var item in Model.SubnetSummaries) { var used = item.AssignedCount + item.ReservedCount + item.ConflictCount + item.UnknownCount; var utilization = item.UsableCount == 0 ? 0 : Math.Clamp((double)used * 100 / item.UsableCount, 0, 100); <tr><td><strong>@item.Subnet.Cidr</strong><small>@item.Subnet.Location · @item.Subnet.VlanName</small></td><td>@item.AssignedCount.ToString("N0")</td><td>@item.ReservedCount.ToString("N0")</td><td>@item.AvailableCount.ToString("N0")</td><td>@(item.UsableCount == 0 ? "Sparse / n.a." : $"{utilization:0.0}%")</td><td><a class="app-secondary-button" asp-action="Explore" asp-route-id="@item.Subnet.Id">Explore</a></td></tr> }
+    </tbody></table></div> }
+</section>
+
 @if (TempData["Success"] is string success) { <div class="notice notice-success" role="status">@success</div> }
 @if (TempData["Error"] is string error) { <div class="notice notice-error" role="alert">@error</div> }
 

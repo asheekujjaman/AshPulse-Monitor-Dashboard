@@ -57,6 +57,12 @@ public sealed class NotificationRecord
 
     public DateTimeOffset OccurredUtc { get; set; }
 
+    public DateTimeOffset? NotBeforeUtc { get; set; }
+
+    public Guid? DependsOnRecordId { get; set; }
+
+    public bool IsSuppressed { get; set; }
+
     public long? ResponseTimeMilliseconds { get; set; }
 
     public string? Details { get; set; }

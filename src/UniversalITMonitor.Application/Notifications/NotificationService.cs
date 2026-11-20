@@ -16,6 +16,7 @@ public sealed class NotificationService(
     IEmailNotificationSender email,
     ILogger<NotificationService> logger) : INotificationService
 {
+    private static readonly TimeSpan DownAlertDelay = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan[] RetryDelays =
     [
         TimeSpan.FromSeconds(5),
@@ -145,7 +146,15 @@ public sealed class NotificationService(
             RequestedChannels = GetEnabledChannels(settings)
         };
 
-        await repository.EnqueueAsync(record, cancellationToken);
+        if (transition.Status == DeviceStatus.Down)
+        {
+            record.NotBeforeUtc = transition.OccurredUtc + DownAlertDelay;
+            await repository.EnqueueAsync(record, cancellationToken);
+        }
+        else
+        {
+            await repository.EnqueueRecoveryAsync(record, cancellationToken);
+        }
     }
 
     public async Task ProcessPendingAsync(CancellationToken cancellationToken = default)
@@ -157,6 +166,8 @@ public sealed class NotificationService(
             var pending = await repository.GetPendingAsync(cancellationToken);
             foreach (var record in pending)
             {
+                if (record.NotBeforeUtc is { } notBefore && notBefore > DateTimeOffset.UtcNow) continue;
+
                 foreach (var channel in record.RequestedChannels)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -225,8 +236,11 @@ public sealed class NotificationService(
 
         var attemptNumber = previousAttemptCount + 1;
         var deadLettered = !transport.Succeeded && (!transport.IsTransient || attemptNumber > RetryDelays.Length);
+        var retryDelay = transport.RetryAfter is { } providerDelay
+            ? TimeSpan.FromSeconds(Math.Clamp(providerDelay.TotalSeconds, 1, 86400))
+            : RetryDelays[Math.Min(attemptNumber - 1, RetryDelays.Length - 1)];
         DateTimeOffset? nextAttemptUtc = !transport.Succeeded && transport.IsTransient && !deadLettered
-            ? DateTimeOffset.UtcNow.Add(RetryDelays[Math.Min(attemptNumber - 1, RetryDelays.Length - 1)])
+            ? DateTimeOffset.UtcNow.Add(retryDelay)
             : null;
 
         var result = new NotificationDeliveryResult

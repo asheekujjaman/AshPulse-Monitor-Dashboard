@@ -10,6 +10,8 @@ public interface IIpamRepository
 
     Task<IpamWriteResult> SaveRecordAsync(IpamRecord record, CancellationToken cancellationToken = default);
 
+    Task<IpamWriteResult> ChangeAllocationAsync(IpamRecord record, IpamHistoryEvent history, CancellationToken cancellationToken = default);
+
     Task<bool> DeleteRecordAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<int> DetachDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default);
@@ -23,6 +25,8 @@ public interface IIpamRepository
     Task<IpamWriteResult> SaveSubnetAsync(IpamSubnet subnet, CancellationToken cancellationToken = default);
 
     Task<IpamWriteResult> DeleteSubnetAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IpamHistoryEvent>> GetHistoryAsync(CancellationToken cancellationToken = default);
 }
 
 public enum IpamWriteResult
@@ -32,7 +36,8 @@ public enum IpamWriteResult
     DuplicateIpAddress,
     DuplicateSubnet,
     Invalid,
-    InUse
+    InUse,
+    AllocationConflict
 }
 
 public sealed record IpamImportStorageResult(int ImportedCount, IReadOnlyList<string> DuplicateIpAddresses);

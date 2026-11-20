@@ -7,6 +7,8 @@ public interface IIpamService
     Task<IReadOnlyList<IpamRecord>> GetRecordsAsync(CancellationToken cancellationToken = default);
     Task<IpamRecord?> GetRecordAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IpamMutationResult> SaveRecordAsync(IpamRecord record, CancellationToken cancellationToken = default);
+    Task<IpamMutationResult> ChangeAllocationAsync(IpamRecord record, string action, string? actor, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IpamHistoryEvent>> GetHistoryAsync(CancellationToken cancellationToken = default);
     Task<IpamMutationResult> DeleteRecordAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IpamSubnet>> GetSubnetsAsync(CancellationToken cancellationToken = default);
     Task<IpamSubnet?> GetSubnetAsync(Guid id, CancellationToken cancellationToken = default);

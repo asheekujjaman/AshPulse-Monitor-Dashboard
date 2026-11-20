@@ -12,7 +12,7 @@ public sealed class DeviceDiscoveryViewModel
     public IReadOnlyList<SubnetChoice> RegisteredSubnets { get; set; } = [];
 }
 
-public sealed record SubnetChoice(string Cidr, string? Location, string? Description);
+public sealed record SubnetChoice(string Cidr, string? Location, string? Description, Guid? LocationId = null, Guid? BuildingId = null);
 
 public sealed class SubnetScanRequest
 {

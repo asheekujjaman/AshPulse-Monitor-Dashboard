@@ -14,7 +14,7 @@
     <section class="panel-card">
         <div class="panel-heading"><div><h2>Scan a registered subnet</h2><p>Discovery uses ICMP from the application server. Only IPv4 subnets from /22 through /32 can be scanned.</p></div></div>
         <form id="ipam-discovery-scan" class="discovery-scan-form">
-            <label class="discovery-field" for="ipam-discovery-subnet">Subnet<select class="form-select" id="ipam-discovery-subnet" required><option value="">Choose registered subnet</option>@foreach (var subnet in Model.RegisteredSubnets){<option value="@subnet.Cidr" selected="@(subnet.Cidr == Model.SubnetCidr)">@subnet.Cidr@(string.IsNullOrWhiteSpace(subnet.Location) ? "" : $" · {subnet.Location}")</option>}</select></label>
+            <label class="discovery-field" for="ipam-discovery-subnet">Subnet<select class="form-select" id="ipam-discovery-subnet" required><option value="">Choose registered subnet</option>@foreach (var subnet in Model.RegisteredSubnets){<option value="@subnet.Cidr" data-location-id="@subnet.LocationId" data-building-id="@subnet.BuildingId" selected="@(subnet.Cidr == Model.SubnetCidr)">@subnet.Cidr@(string.IsNullOrWhiteSpace(subnet.Location) ? "" : $" · {subnet.Location}")</option>}</select></label>
             <label class="discovery-field" for="ipam-discovery-timeout">Ping timeout<select class="form-select" id="ipam-discovery-timeout"><option value="500">500 ms</option><option value="1000" selected>1 second</option><option value="2000">2 seconds</option><option value="3000">3 seconds</option></select></label>
             <button class="app-primary-button btn" id="ipam-discovery-scan-button" type="submit" disabled="@(Model.RegisteredSubnets.Count == 0)">Scan subnet</button>
         </form>
@@ -32,7 +32,7 @@
                 <label class="discovery-field">VLAN ID<input class="form-control" id="ipam-discovery-vlan" type="number" min="1" max="4094" /></label>
                 <label class="discovery-field">VLAN name<input class="form-control" id="ipam-discovery-vlan-name" maxlength="120" /></label>
                 <label class="discovery-field">Location<select class="form-select" id="ipam-discovery-location"><option value="">Use subnet location</option>@foreach (var item in Model.LocationChoices){<option value="@item.Id">@item.Name</option>}</select></label>
-                <label class="discovery-field">Building<select class="form-select" id="ipam-discovery-building"><option value="">Use subnet building</option>@foreach (var item in Model.BuildingChoices){<option value="@item.Id">@item.Name</option>}</select></label>
+                <label class="discovery-field">Building<select class="form-select" id="ipam-discovery-building"><option value="">Use subnet building</option>@foreach (var item in Model.BuildingChoices){<option value="@item.Id" data-location-ancestors="@string.Join(",", item.ParentIds ?? [])">@item.Name</option>}</select></label>
                 <label class="discovery-field">Group<select class="form-select" id="ipam-discovery-group"><option value="">Unassigned</option>@foreach (var item in Model.GroupChoices){<option value="@item.Id">@item.Name</option>}</select></label>
                 <label class="discovery-field">Switch name<input class="form-control" id="ipam-discovery-switch" maxlength="120" /></label>
                 <label class="discovery-field">Switch IP<input class="form-control" id="ipam-discovery-switch-ip" /></label>

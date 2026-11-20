@@ -51,7 +51,7 @@ Open **Alerts / Notifications** as Administrator. Configure the selected channel
 
 Credential fields are protected using Data Protection and are not returned to the page. The UI can indicate that a credential is saved without revealing it. Re-enter a credential only when rotating it. Restrict access to local data and backup directories.
 
-Notifications are queued for Down and Down-to-Up transitions, not every repeated Down poll. Delivery records show channel results. Transient attempts are bounded; exhausted failures/dead letters need administrator attention. Delivery is not atomic with external provider acceptance, so a narrow crash window can produce a duplicate. Do not claim external delivery is verified until a target-environment test succeeds.
+Down notifications are queued after one continuous minute in Down; recovery within that minute suppresses both alerts. Later recovery notifications wait for the matching Down delivery attempts. Repeated Down polls do not create repeated alerts. Delivery records show channel results. Transient attempts are bounded; exhausted failures/dead letters need administrator attention. Delivery is not atomic with external provider acceptance, so a narrow crash window can produce a duplicate. Do not claim external delivery is verified until a target-environment test succeeds.
 
 ## 8. Configure IPAM and hierarchy
 
